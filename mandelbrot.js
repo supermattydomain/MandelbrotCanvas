@@ -98,24 +98,40 @@ function Mandelbrot(canvas, cmap, calc) {
 		return  (c - this.imageData.width  / 2) * this.scale + this.centreRl;
 	};
 	this.rowToY = function(r) {
-		// Inversion due to the canvas' reversed-Y co-ordinate system.
+		// Inversion due to the canvas' inverted-Y co-ordinate system.
 		// The set is symmetrical, but the co-ordinates are shown to the user.
 		return -(r - this.imageData.height / 2) * this.scale + this.centreIm;
 	};
 	this.update = function() {
-		var r, c, x, y, et, colour;
-		for (r = 0; r < this.imageData.height; r++) {
-			for (c = 0; c < this.imageData.width; c++) {
-				x = this.colToX(c);
-				y = this.rowToY(r);
-				et = this.calc.escapeTime(x, y, this.maxIter);
-				// debug(x, y, et);
-				colour = this.cmap.makeColour(et, this.maxIter);
-				setPixel(this.imageData, c, r, colour[0], colour[1], colour[2], colour[3]);
-				// drawHLine(this.imageData, 0, i, this.imageData.width - 1, colour[0], colour[1], colour[2], colour[3]);
+		this.stop();
+		function updateFunc(myUpdateTimeout) {
+			// debug(this.centreRl, this.centreIm);
+			this.imageData = this.context.getImageData(0, 0, this.canvas.width(), this.canvas.height());
+			var r, c, x, y, et, colour;
+			for (r = 0; r < this.imageData.height; r++) {
+				for (c = 0; c < this.imageData.width; c++) {
+					x = this.colToX(c);
+					y = this.rowToY(r);
+					et = this.calc.escapeTime(x, y, this.maxIter);
+					// debug(x, y, et);
+					colour = this.cmap.makeColour(et, this.maxIter);
+					if (this.updateTimeout != myUpdateTimeout) {
+						return; // Abort - no longer the current render thread
+					} 
+					setPixel(this.imageData, c, r, colour[0], colour[1], colour[2], colour[3]);
+					// drawHLine(this.imageData, 0, i, this.imageData.width - 1, colour[0], colour[1], colour[2], colour[3]);
+				}
 			}
+			this.context.putImageData(this.imageData, 0, 0);
 		}
-		this.context.putImageData(this.imageData, 0, 0);
+		var that = this;
+		this.updateTimeout = setTimeout(function() {
+			updateFunc.call(that, that.updateTimeout);
+		});
+	};
+	this.stop = function() {
+		clearTimeout(this.updateTimeout);
+		this.updateTimeout = null;
 	};
 	this.getCentre = function() {
 		return [ this.centreRl, this.centreIm ];
@@ -136,8 +152,7 @@ function Mandelbrot(canvas, cmap, calc) {
 		return this.scale;
 	};
 	this.zoomInBy = function(factor) {
-		this.zoomBy(1 / factor);
-		return this.scale;
+		return this.zoomBy(1 / factor);
 	};
 	this.zoomOutBy = this.zoomBy;
 	this.getMaxIter = function() {
@@ -150,44 +165,46 @@ function Mandelbrot(canvas, cmap, calc) {
 
 $(function() {
 	var canvas = $('#mandelbrot');
-	var displayMouseX = $('#mousex');
-	var displayMouseY = $('#mousey');
-	var displayCentreX = $('#centrex');
-	var displayCentreY = $('#centrey');
+	var displayMouseRl = $('#mouserl');
+	var displayMouseIm = $('#mouseim');
+	var displayCentreRl = $('#centrerl');
+	var displayCentreIm = $('#centreim');
 	var displayScale = $('#scale');
 	var displayMaxIter = $('#maxiter');
 	var mandelbrot = new Mandelbrot(canvas);
+	function updateControls() {
+		displayCentreRl.val(mandelbrot.getCentre()[0]);
+		displayCentreIm.val(mandelbrot.getCentre()[1]);
+		displayScale.val(mandelbrot.getScale());
+		displayMaxIter.val(mandelbrot.getMaxIter());
+	}
+	function update() {
+		updateControls();
+		mandelbrot.update();
+	}
 	canvas.on('mousemove', function(event) {
-		displayMouseX.val(mandelbrot.colToX(event.pageX - canvas.position().left));
-		displayMouseY.val(mandelbrot.rowToY(event.pageY - canvas.position().top));
+		displayMouseRl.val(mandelbrot.colToX(event.pageX - canvas.position().left));
+		displayMouseIm.val(mandelbrot.rowToY(event.pageY - canvas.position().top));
 	}).on('click', function(event) {
-		var x = mandelbrot.colToX(event.pageX - canvas.position().left);
-		var y = mandelbrot.rowToY(event.pageY - canvas.position().top);
-		mandelbrot.setCentre(x, y);
-		displayCentreX.val(x);
-		displayCentreY.val(y);
-		displayScale.val(mandelbrot.zoomInBy(2));
-		mandelbrot.update();
+		mandelbrot.setCentre(mandelbrot.colToX(event.pageX - canvas.position().left), mandelbrot.rowToY(event.pageY - canvas.position().top));
+		mandelbrot.zoomInBy(2);
+		update();
 	});
-	displayCentreX.on('change', function() {
-		mandelbrot.setCentre(displayCentreX.val(), mandelbrot.getCentre()[1]);
-		mandelbrot.update();
+	displayCentreRl.on('change', function() {
+		mandelbrot.setCentre(parseFloat($(this).val()), mandelbrot.getCentre()[1]);
+		update();
 	});
-	displayCentreY.on('change', function() {
-		mandelbrot.setCentre(mandelbrot.getCentre()[0], displayCentreY.val());
-		mandelbrot.update();
+	displayCentreIm.on('change', function() {
+		mandelbrot.setCentre(mandelbrot.getCentre()[0], parseFloat($(this).val()));
+		update();
 	});
 	displayScale.on('change', function() {
-		mandelbrot.setScale(displayScale.val());
-		mandelbrot.update();
+		mandelbrot.setScale(parseFloat($(this).val()));
+		update();
 	});
 	displayMaxIter.on('change', function() {
-		mandelbrot.setMaxIter(displayMaxIter.val());
-		mandelbrot.update();
+		mandelbrot.setMaxIter(parseInt($(this).val()));
+		update();
 	});
-	displayCentreX.val(mandelbrot.getCentre()[0]);
-	displayCentreY.val(mandelbrot.getCentre()[1]);
-	displayScale.val(mandelbrot.getScale());
-	displayMaxIter.val(mandelbrot.getMaxIter());
-	mandelbrot.update();
+	update();
 });
