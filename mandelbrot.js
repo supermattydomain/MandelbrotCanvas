@@ -95,10 +95,12 @@ function Mandelbrot(canvas, cmap, calc) {
 	this.scale = 5 / Math.min(this.imageData.width, this.imageData.height);
 	this.maxIter = 100;
 	this.colToX = function(c) {
-		return (this.centreRl + c - this.imageData.width  / 2) * this.scale;
+		return  (c - this.imageData.width  / 2) * this.scale + this.centreRl;
 	};
 	this.rowToY = function(r) {
-		return (this.centreIm + r - this.imageData.height / 2) * this.scale;
+		// Inversion due to the canvas' reversed-Y co-ordinate system.
+		// The set is symmetrical, but the co-ordinates are shown to the user.
+		return -(r - this.imageData.height / 2) * this.scale + this.centreIm;
 	};
 	this.update = function() {
 		var r, c, x, y, et, colour;
@@ -115,9 +117,77 @@ function Mandelbrot(canvas, cmap, calc) {
 		}
 		this.context.putImageData(this.imageData, 0, 0);
 	};
+	this.getCentre = function() {
+		return [ this.centreRl, this.centreIm ];
+	};
+	this.setCentre = function(rl, im) {
+		this.centreRl = rl;
+		this.centreIm = im;
+	};
+	this.getScale = function() {
+		return this.scale;
+	};
+	this.setScale = function(newScale) {
+		this.scale = newScale;
+		return this.scale;
+	};
+	this.zoomBy = function(factor) {
+		this.scale *= factor;
+		return this.scale;
+	};
+	this.zoomInBy = function(factor) {
+		this.zoomBy(1 / factor);
+		return this.scale;
+	};
+	this.zoomOutBy = this.zoomBy;
+	this.getMaxIter = function() {
+		return this.maxIter;
+	};
+	this.setMaxIter = function(newMaxIter) {
+		this.maxIter = newMaxIter;
+	};
 }
 
 $(function() {
-	var mandelbrot = new Mandelbrot($('#mandelbrot'));
+	var canvas = $('#mandelbrot');
+	var displayMouseX = $('#mousex');
+	var displayMouseY = $('#mousey');
+	var displayCentreX = $('#centrex');
+	var displayCentreY = $('#centrey');
+	var displayScale = $('#scale');
+	var displayMaxIter = $('#maxiter');
+	var mandelbrot = new Mandelbrot(canvas);
+	canvas.on('mousemove', function(event) {
+		displayMouseX.val(mandelbrot.colToX(event.pageX - canvas.position().left));
+		displayMouseY.val(mandelbrot.rowToY(event.pageY - canvas.position().top));
+	}).on('click', function(event) {
+		var x = mandelbrot.colToX(event.pageX - canvas.position().left);
+		var y = mandelbrot.rowToY(event.pageY - canvas.position().top);
+		mandelbrot.setCentre(x, y);
+		displayCentreX.val(x);
+		displayCentreY.val(y);
+		displayScale.val(mandelbrot.zoomInBy(2));
+		mandelbrot.update();
+	});
+	displayCentreX.on('change', function() {
+		mandelbrot.setCentre(displayCentreX.val(), mandelbrot.getCentre()[1]);
+		mandelbrot.update();
+	});
+	displayCentreY.on('change', function() {
+		mandelbrot.setCentre(mandelbrot.getCentre()[0], displayCentreY.val());
+		mandelbrot.update();
+	});
+	displayScale.on('change', function() {
+		mandelbrot.setScale(displayScale.val());
+		mandelbrot.update();
+	});
+	displayMaxIter.on('change', function() {
+		mandelbrot.setMaxIter(displayMaxIter.val());
+		mandelbrot.update();
+	});
+	displayCentreX.val(mandelbrot.getCentre()[0]);
+	displayCentreY.val(mandelbrot.getCentre()[1]);
+	displayScale.val(mandelbrot.getScale());
+	displayMaxIter.val(mandelbrot.getMaxIter());
 	mandelbrot.update();
 });
