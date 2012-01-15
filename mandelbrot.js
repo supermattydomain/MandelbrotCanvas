@@ -27,8 +27,7 @@ function ColourMapRainbow() {
 		if (n == maxIter) {
 			return [0, 0, 0, 255];
 		}
-		// outside set, iteration count modulo entire colourmap size selects
-		// colour
+		// outside set, iteration count modulo entire colourmap size selects colour
 		return this.colourMap[n % this.colourMap.length];
 	};
 	this.genColourMap();
@@ -41,7 +40,7 @@ $(function() {
 	var cmap = new ColourMapRainbow();
 	for (var i = 0; i < 200; i++) {
 		var colour = cmap.makeColour(i, 1000);
-		drawHLine(imageData, 1, i, imageData.width, colour[0], colour[1], colour[2], colour[3]);
+		drawHLine(imageData, 0, i, imageData.width - 1, colour[0], colour[1], colour[2], colour[3]);
 	}
 	context.putImageData(imageData, 0, 0);
 });
