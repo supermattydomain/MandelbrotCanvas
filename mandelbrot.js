@@ -206,5 +206,13 @@ $(function() {
 		mandelbrot.setMaxIter(parseInt($(this).val(), 10));
 		update();
 	});
+	$('#zoomin').on('click', function() {
+		mandelbrot.zoomInBy(2);
+		update();
+	});
+	$('#zoomout').on('click', function() {
+		mandelbrot.zoomOutBy(2);
+		update();
+	});
 	update();
 });
