@@ -2,12 +2,13 @@
  * The Mandelbrot set using Javascript and a canvas for image pixel access.
  */
 
-function drawHLine(imageData, x1, y1, x2, r, g, b, a) {
+function drawHLine(imageData, x1, y, x2, r, g, b, a) {
+	var i = (y*imageData.width*4);
 	for (; x1 <= x2; x1++) {
-		imageData.data[(y1*imageData.width*4) + (x1*4) + 0] = r;
-		imageData.data[(y1*imageData.width*4) + (x1*4) + 1] = g;
-		imageData.data[(y1*imageData.width*4) + (x1*4) + 2] = b;
-		imageData.data[(y1*imageData.width*4) + (x1*4) + 3] = a;
+		imageData.data[i + (x1*4) + 0] = r;
+		imageData.data[i + (x1*4) + 1] = g;
+		imageData.data[i + (x1*4) + 2] = b;
+		imageData.data[i + (x1*4) + 3] = a;
 	}
 }
 
@@ -55,10 +56,9 @@ function ColourMapRainbow() {
  * get greater precision? avoid arbitrary-precision math lib as long as
  * possible...
  */
-function EscapeTimeCalculator(maxIter) {
+function EscapeTimeCalculator() {
 	this.radius = 2;
-	this.maxIter = maxIter;
-	this.escapeTime = function(x, y) {
+	this.escapeTime = function(x, y, maxIter) {
 		var rl, im, sqrl, sqim;
 		var sqr = this.radius * this.radius;
 		var i;
@@ -68,7 +68,7 @@ function EscapeTimeCalculator(maxIter) {
 		// debug("X0: " + x);
 		// debug("Y0: " + y);
 
-		for (i = 0, rl = x, im = y; i < this.maxIter; i++) {
+		for (i = 0, rl = x, im = y; i < maxIter; i++) {
 			sqrl = rl * rl;
 			sqim = im * im;
 			if (sqrl + sqim > sqr) {
@@ -84,25 +84,40 @@ function EscapeTimeCalculator(maxIter) {
 	};
 }
 
-$(function() {
-	var canvas = $('#mandelbrot');
-	var context = canvas[0].getContext("2d");
-	var imageData = context.getImageData(0, 0, canvas.width(), canvas.height());
-	var maxIter = 100;
-	var cmap = new ColourMapRainbow();
-	var calc = new EscapeTimeCalculator(maxIter);
-	var centreRl = 0, centreIm = 0, scale = 5 / Math.min(imageData.width, imageData.height);
-	var r, c, x, y;
-	for (r = 0; r < imageData.height; r++) {
-		for (c = 0; c < imageData.width; c++) {
-			x = (centreRl + c - imageData.width  / 2) * scale;
-			y = (centreIm + r - imageData.height / 2) * scale;
-			var et = calc.escapeTime(x, y);
-			// debug(x, y, et);
-			var colour = cmap.makeColour(et, maxIter);
-			setPixel(imageData, c, r, colour[0], colour[1], colour[2], colour[3]);
-			// drawHLine(imageData, 0, i, imageData.width - 1, colour[0], colour[1], colour[2], colour[3]);
+function Mandelbrot(canvas, cmap, calc) {
+	this.canvas = canvas;
+	this.cmap = new ColourMapRainbow();
+	this.calc = new EscapeTimeCalculator();
+	this.context = this.canvas[0].getContext("2d");
+	this.imageData = this.context.getImageData(0, 0, this.canvas.width(), this.canvas.height());
+	this.centreRl = 0;
+	this.centreIm = 0;
+	this.scale = 5 / Math.min(this.imageData.width, this.imageData.height);
+	this.maxIter = 100;
+	this.colToX = function(c) {
+		return (this.centreRl + c - this.imageData.width  / 2) * this.scale;
+	};
+	this.rowToY = function(r) {
+		return (this.centreIm + r - this.imageData.height / 2) * this.scale;
+	};
+	this.update = function() {
+		var r, c, x, y, et, colour;
+		for (r = 0; r < this.imageData.height; r++) {
+			for (c = 0; c < this.imageData.width; c++) {
+				x = this.colToX(c);
+				y = this.rowToY(r);
+				et = this.calc.escapeTime(x, y, this.maxIter);
+				// debug(x, y, et);
+				colour = this.cmap.makeColour(et, this.maxIter);
+				setPixel(this.imageData, c, r, colour[0], colour[1], colour[2], colour[3]);
+				// drawHLine(this.imageData, 0, i, this.imageData.width - 1, colour[0], colour[1], colour[2], colour[3]);
+			}
 		}
-	}
-	context.putImageData(imageData, 0, 0);
+		this.context.putImageData(this.imageData, 0, 0);
+	};
+}
+
+$(function() {
+	var mandelbrot = new Mandelbrot($('#mandelbrot'));
+	mandelbrot.update();
 });
