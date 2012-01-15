@@ -203,7 +203,7 @@ $(function() {
 		update();
 	});
 	displayMaxIter.on('change', function() {
-		mandelbrot.setMaxIter(parseInt($(this).val()));
+		mandelbrot.setMaxIter(parseInt($(this).val(), 10));
 		update();
 	});
 	update();
