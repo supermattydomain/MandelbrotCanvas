@@ -2,24 +2,20 @@
  * The Mandelbrot set using Javascript and a canvas for image pixel access.
  */
 
-function drawHLine(imageData, x1, y, x2, r, g, b, a) {
-	var i = (y*imageData.width*4);
-	for (; x1 <= x2; x1++) {
-		imageData.data[i + (x1*4) + 0] = r;
-		imageData.data[i + (x1*4) + 1] = g;
-		imageData.data[i + (x1*4) + 2] = b;
-		imageData.data[i + (x1*4) + 3] = a;
-	}
-}
-
+/**
+ * Set a pixel's rgba values in a canvas ImageData object.
+ */
 function setPixel(imageData, x, y, r, g, b, a) {
-	var i = (y*imageData.width*4) + (x*4);
+	var i = (y * imageData.width * 4) + (x * 4);
 	imageData.data[i + 0] = r;
 	imageData.data[i + 1] = g;
 	imageData.data[i + 2] = b;
 	imageData.data[i + 3] = a;
 }
 
+/**
+ * A ramp through the rainbow.
+ */
 function ColourMapRainbow() {
 	// TODO: This needs to be smarter. Maybe logarithmic.
 	this.numGradations = 70;
@@ -42,6 +38,9 @@ function ColourMapRainbow() {
 	this.genColourMap();
 }
 
+/**
+ * A 'smooth' ramp from red to green to blue.
+ */
 function ColourMapSmooth() {
 	this.numGradations = 40;
 	this.colourMap = [];
@@ -54,21 +53,21 @@ function ColourMapSmooth() {
 			    255 - n, // red monotonic decrease
 				n, // green monotonic increase
 				0, // blue constant
-				255
+				255 // alpha constant
 			];
 			// from green at 1/3 to blue at 2/3
 			this.colourMap[i + this.numGradations] = [
 				0, // red constant
 				255 - n, // green monotonic decrease
 				n, // blue monotonic increase
-				255
+				255 // alpha constant
 			];
-			// from blue at 2/3 to red at 1==0
+			// from blue at 2/3 to red at 3/3==0
 			this.colourMap[i + this.numGradations + this.numGradations] = [
 			    n, // red monotonic increase
 				0, // green constant
 				255 - n, // blue monotonic decrease
-				255
+				255 // alpha constant
 			];
 		}
 	};
@@ -104,11 +103,6 @@ function EscapeTimeCalculator() {
 		var sqr = this.radius * this.radius;
 		var i;
 
-		// debug("Radius: " + radius.getValueDouble());
-		// debug("MaxIter: " + maxIter.getValueInt());
-		// debug("X0: " + x);
-		// debug("Y0: " + y);
-
 		for (i = 0, rl = x, im = y; i < maxIter; i++) {
 			sqrl = rl * rl;
 			sqim = im * im;
@@ -119,12 +113,17 @@ function EscapeTimeCalculator() {
 			rl = sqrl - sqim + x;
 		} // for iterations
 
-		// debug("(" + x + ", " + y + "): " + i);
-
 		return i;
 	};
 }
 
+/**
+ * A panel displaying the Mandelbrot set.
+ * @param canvas A jQuery wrapper around the HTML5 canvas element to draw into
+ * @param cmap The colourmap to use
+ * @param calc The escape-time calculator to use
+ * @returns
+ */
 function Mandelbrot(canvas, cmap, calc) {
 	this.canvas = canvas;
 	this.cmap = new ColourMapRainbow();
@@ -147,7 +146,6 @@ function Mandelbrot(canvas, cmap, calc) {
 	this.update = function() {
 		this.stop();
 		function updateFunc(myUpdateTimeout) {
-			// debug(this.centreRl, this.centreIm);
 			this.imageData = this.context.getImageData(0, 0, this.canvas.width(), this.canvas.height());
 			var r, c, x, y, et, colour;
 			for (r = 0; r < this.imageData.height; r++) {
@@ -155,7 +153,6 @@ function Mandelbrot(canvas, cmap, calc) {
 					x = this.colToX(c);
 					y = this.rowToY(r);
 					et = this.calc.escapeTime(x, y, this.maxIter);
-					// debug(x, y, et);
 					colour = this.cmap.makeColour(et, this.maxIter);
 					if (this.updateTimeout != myUpdateTimeout) {
 						return; // Abort - no longer the current render thread
