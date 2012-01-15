@@ -42,6 +42,47 @@ function ColourMapRainbow() {
 	this.genColourMap();
 }
 
+function ColourMapSmooth() {
+	this.numGradations = 40;
+	this.colourMap = [];
+	this.genColourMap = function() {
+		var i, n;
+		for (i = 0; i < this.numGradations * 3; i++) {
+			n = 255 * i / this.numGradations; // amount into transition into next colour
+			// from red at 0 to green at 1/3
+			this.colourMap[i] = [
+			    255 - n, // red monotonic decrease
+				n, // green monotonic increase
+				0, // blue constant
+				255
+			];
+			// from green at 1/3 to blue at 2/3
+			this.colourMap[i + this.numGradations] = [
+				0, // red constant
+				255 - n, // green monotonic decrease
+				n, // blue monotonic increase
+				255
+			];
+			// from blue at 2/3 to red at 1==0
+			this.colourMap[i + this.numGradations + this.numGradations] = [
+			    n, // red monotonic increase
+				0, // green constant
+				255 - n, // blue monotonic decrease
+				255
+			];
+		}
+	};
+	this.makeColour = function(n, maxIter) {
+		// points in set are black
+		if (n == maxIter) {
+			return [0, 0, 0, 255];
+		}
+		// outside set, iteration count modulo entire colourmap size selects colour
+		return this.colourMap[n % this.colourMap.length];
+	};
+	this.genColourMap();
+}
+
 /**
  * Calculate number of iterations of Mandelbrot function (ie terms in
  * sequence) before given point z = (x(1) + y(1)i) escapes circle of given
@@ -87,6 +128,7 @@ function EscapeTimeCalculator() {
 function Mandelbrot(canvas, cmap, calc) {
 	this.canvas = canvas;
 	this.cmap = new ColourMapRainbow();
+	// this.cmap = new ColourMapSmooth();
 	this.calc = new EscapeTimeCalculator();
 	this.context = this.canvas[0].getContext("2d");
 	this.imageData = this.context.getImageData(0, 0, this.canvas.width(), this.canvas.height());
