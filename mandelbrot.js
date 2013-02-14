@@ -24,6 +24,37 @@ function toInitialCaps(str) {
 	return ret;
 }
 
+function makeColour(cmap, n, lastVal, power, maxIter, normalised) {
+	var frac, thisColour, nextColour;
+	// points in set are black
+	if (n == maxIter) {
+		return [0, 0, 0, 255];
+	}
+	// outside set, iteration count modulo entire colourmap size selects colour
+	if (!normalised) {
+		// Return an entry directly from the colour map
+		return cmap.colourMap[n % cmap.colourMap.length];
+	}
+	/**
+	 * Generate a fractional normalised iteration count, then use it to interpolate
+	 * between two neighbouring colour map entries.
+	 */
+	n = Math.max(0, n + 1 - Math.log(Math.log(lastVal)) / Math.log(power));
+	frac = n - Math.floor(n);
+	if (frac < 0 || frac > 1) {
+		throw "frac " + frac + " not in [0..1]";
+	}
+	n = Math.floor(n);
+	thisColour = cmap.colourMap[n % cmap.colourMap.length];
+	nextColour = cmap.colourMap[(n + 1) % cmap.colourMap.length];
+	return [
+	    thisColour[0] + frac * (nextColour[0] - thisColour[0]),
+	    thisColour[1] + frac * (nextColour[1] - thisColour[1]),
+	    thisColour[2] + frac * (nextColour[2] - thisColour[2]),
+	    thisColour[3] + frac * (nextColour[3] - thisColour[3]),
+	];
+}
+
 /**
  * Various ways of mapping escape-time values to a repeating range of colours.
  */
@@ -32,61 +63,45 @@ var colourMaps = {
      * A ramp through the rainbow in hue.
      */
     'rainbow': {
-    	numGradations: 70,
+    	numGradations: 50, // Gradations per colour map
     	colourMap: [],
     	genColourMap: function() {
-    		var h = 0, s = 1, v = 1, i;
+    		var h = 0, s = 0.6, v = 0.8, i;
     		for (i = 0; i < this.numGradations; i++) {
     			var rgb = hsvToRgb(h + (i / this.numGradations), s, v);
     			this.colourMap[i] = [ rgb[0], rgb[1], rgb[2], 255 ];
     		}
-    	},
-    	makeColour: function(n, maxIter) {
-    		// points in set are black
-    		if (n == maxIter) {
-    			return [0, 0, 0, 255];
-    		}
-    		// outside set, iteration count modulo entire colourmap size selects colour
-    		return this.colourMap[n % this.colourMap.length];
     	}
     },
     /**
-     * A 'smooth' ramp from red to green to blue.
+     * A 'smooth' ramp from red to green to blue and back to red.
      */
    	'smooth': {
-    	numGradations: 40,
+    	numGradations: 20, // Gradations per colour transition; three transitions per colour map
     	colourMap: [],
-    	makeColour: function(n, maxIter) {
-    		// points in set are black
-    		if (n == maxIter) {
-    			return [0, 0, 0, 255];
-    		}
-    		// outside set, iteration count modulo entire colourmap size selects colour
-    		return this.colourMap[n % this.colourMap.length];
-    	},
     	genColourMap: function() {
-    		var i, n;
+    		var i, n, max = 128;
     		for (i = 0; i < this.numGradations * 3; i++) {
-    			n = 255 * i / this.numGradations; // amount into transition into next colour
+    			n = max * i / this.numGradations; // amount into transition into next colour
     			// from red at 0 to green at 1/3
     			this.colourMap[i] = [
-    			    255 - n, // red monotonic decrease
-    				n, // green monotonic increase
-    				0, // blue constant
+    			    max - n, // red monotonic decrease
+    				n,  // green monotonic increase
+    				0,  // blue constant
     				255 // alpha constant
     			];
     			// from green at 1/3 to blue at 2/3
     			this.colourMap[i + this.numGradations] = [
-    				0, // red constant
-    				255 - n, // green monotonic decrease
-    				n, // blue monotonic increase
+    				0,  // red constant
+    				max - n, // green monotonic decrease
+    				n,  // blue monotonic increase
     				255 // alpha constant
     			];
     			// from blue at 2/3 to red at 3/3==0
     			this.colourMap[i + this.numGradations + this.numGradations] = [
-    			    n, // red monotonic increase
-    				0, // green constant
-    				255 - n, // blue monotonic decrease
+    			    n,  // red monotonic increase
+    				0,  // green constant
+    				max - n, // blue monotonic decrease
     				255 // alpha constant
     			];
     		}
@@ -97,10 +112,10 @@ var colourMaps = {
 /*
 Pascal's triangle, for calculating binomial coefficients
 for expansion of (a + b)^n below.
-   1
-  1 1
- 1 2 1
-1 3 3 1
+    1
+   1 1
+  1 2 1
+ 1 3 3 1
 1 4 6 4 1
 */
 
@@ -114,16 +129,17 @@ for expansion of (a + b)^n below.
 var escapeTimeCalculators = {
     /**
      * Classical Mandelbrot (quadratic).
-     * First term of orbit series =
-     * z(0) = x(0) + y(0)i; then z(1) = z(0)^2 + z(0) = (x(0) + y(0)i)^2 + x(0) +
-     * y(0)i; generally, z(n+1) = z(n)^2 + z(1) = z(n)^2 + x(1) + y(1)i Solving
-     * separately for the real and imaginary components: x(n+1) = x(n)^2 -
-     * y(n)^2 + x(1), and y(n+1) = 2x(n)y(n) + y(1)
+     * First term of orbit series = z(0) = x(0) + y(0)i ;
+     * then z(1) = z(0)^2 + z(0) = (x(0) + y(0)i)^2 + x(0) + y(0)i ;
+     * generally, z(n+1) = z(n)^2 + z(0) = z(n)^2 + x(0) + y(0)i .
+     * Solving separately for the real and imaginary components:
+     * x(n+1) = x(n)^2 - y(n)^2 + x(0), and
+     * y(n+1) = 2x(n)y(n) + y(0)
      * TODO: detect underflow and use bignum library for greater precision?
      */
 	'mandelbrot': {
-    	escapeTime: function(x, y, maxIter) {
-    		var rl, im, sqrl, sqim, i, sqr = 2 * 2;
+    	escapeTime: function(x, y, maxIter, normalised) {
+    		var rl, im, sqrl = 0, sqim = 0, i, sqr = 2 * 2;
 
     		for (i = 0, rl = x, im = y; i < maxIter; i++) {
     			sqrl = rl * rl;
@@ -135,7 +151,10 @@ var escapeTimeCalculators = {
     			rl = sqrl - sqim + x;
     		} // for iterations
 
-    		return i;
+    		if (normalised) {
+        		return [i, Math.sqrt(sqrl + sqim), 2];    			
+    		}
+    		return [i, 0, 2];
     	}
     },
     /**
@@ -145,8 +164,8 @@ var escapeTimeCalculators = {
      * I(n+1) = I(n)((3R(n)^2 - I(n)^2) + I(0))
      */
     'mandelbrot cubic': {
-    	escapeTime: function(x, y, maxIter) {
-    		var rl, im, sqrl, sqim, i, sqr = 2 * 2;
+    	escapeTime: function(x, y, maxIter, normalised) {
+    		var rl, im, sqrl = 0, sqim = 0, i, sqr = 2 * 2;
 
     		for (i = 0, rl = x, im = y; i < maxIter; i++) {
     			sqrl = rl * rl;
@@ -159,7 +178,10 @@ var escapeTimeCalculators = {
     			rl = newrl;
     		} // for iterations
 
-    		return i;
+    		if (normalised) {
+    			return [i, Math.sqrt(sqrl + sqim), 3];
+    		}
+    		return [i, 0, 3];
     	}
     },
     /**
@@ -171,8 +193,8 @@ var escapeTimeCalculators = {
      * I(n+1)   = 4a^3b - 4ab^3 + I(0)
      */
     'mandelbrot quartic': {
-    	escapeTime: function(x, y, maxIter) {
-    		var rl, im, sqrl, sqim, newrl, i, sqr = 2 * 2;
+    	escapeTime: function(x, y, maxIter, normalised) {
+    		var rl, im, sqrl = 0, sqim = 0, newrl, i, sqr = 2 * 2;
 
     		for (i = 0, rl = x, im = y; i < maxIter; i++) {
     			sqrl = rl * rl;
@@ -185,7 +207,10 @@ var escapeTimeCalculators = {
     			rl = newrl;
     		} // for iterations
 
-    		return i;
+    		if (normalised) {
+        		return [i, Math.sqrt(sqrl + sqim), 4];
+    		}
+    		return [i, 0, 4];
     	}
     }
 };
@@ -219,13 +244,15 @@ function Mandelbrot(canvas, cmapName, etCalcName) {
 	this.centreIm = 0;
 	this.scale = 5 / Math.min(this.imageData.width, this.imageData.height);
 	this.maxIter = 100;
+	this.normalised = true;
+	this.radius = 2;
 	this.colToX = function(c) {
-		return  (c - this.imageData.width  / 2) * this.scale + this.centreRl;
+		return  (c + 0.5 - this.imageData.width  / 2) * this.scale + this.centreRl;
 	};
 	this.rowToY = function(r) {
 		// Inversion due to the canvas' inverted-Y co-ordinate system.
 		// The set is symmetrical, but the co-ordinates are shown to the user.
-		return -(r - this.imageData.height / 2) * this.scale + this.centreIm;
+		return -(r + 0.5 - this.imageData.height / 2) * this.scale + this.centreIm;
 	};
 	this.update = function() {
 		this.stop();
@@ -236,13 +263,12 @@ function Mandelbrot(canvas, cmapName, etCalcName) {
 				for (c = 0; c < this.imageData.width; c++) {
 					x = this.colToX(c);
 					y = this.rowToY(r);
-					et = this.calc.escapeTime.call(this.calc, x, y, this.maxIter);
-					colour = this.cmap.makeColour.call(this.cmap, et, this.maxIter);
+					et = this.calc.escapeTime.call(this.calc, x, y, this.maxIter, this.normalised);
+					colour = makeColour(this.cmap, et[0], et[1], et[2], this.maxIter, this.normalised);
 					if (this.updateTimeout != myUpdateTimeout) {
 						return; // Abort - no longer the current render thread
 					} 
 					setPixel(this.imageData, c, r, colour[0], colour[1], colour[2], colour[3]);
-					// drawHLine(this.imageData, 0, i, this.imageData.width - 1, colour[0], colour[1], colour[2], colour[3]);
 				}
 			}
 			this.context.putImageData(this.imageData, 0, 0);
@@ -256,6 +282,15 @@ function Mandelbrot(canvas, cmapName, etCalcName) {
 		clearTimeout(this.updateTimeout);
 		this.updateTimeout = null;
 	};
+	/**
+	 * FIXME: I would like to simply translate and scale the canvas here;
+	 * but at time of writing, there is no portable way to retrieve the canvas'
+	 * current transform matrix. So I simply do my own, manual transforms.
+	 * One could implement (and some have) a polyfill for this:
+	 * maintain a 'shadow' copy of the canvas' current transform matrix,
+	 * over-ride every relevant canvas mutator so it concatenates the newly-applied transform
+	 * with the shadow matrix, then regurgitate the shadow matrix on demand.
+	 */
 	this.getCentre = function() {
 		return [ this.centreRl, this.centreIm ];
 	};
@@ -284,6 +319,12 @@ function Mandelbrot(canvas, cmapName, etCalcName) {
 	this.setMaxIter = function(newMaxIter) {
 		this.maxIter = newMaxIter;
 	};
+	this.getRadius = function() {
+		return this.radius;
+	};
+	this.setRadius = function(newRadius) {
+		this.radius = newRadius;
+	};
 	this.getColourMapName = function() {
 		return this.cmapName;
 	};
@@ -306,6 +347,12 @@ function Mandelbrot(canvas, cmapName, etCalcName) {
 		this.etCalcName = newCalcName;
 		this.calc = escapeTimeCalculators[newCalcName.toLowerCase()];
 	};
+	this.getNormalised = function() {
+		return this.normalised;
+	};
+	this.setNormalised = function(newNormalised) {
+		this.normalised = newNormalised;
+	};
 }
 
 $(function() {
@@ -318,6 +365,8 @@ $(function() {
 	var displayMaxIter = $('#maxiter');
 	var displayColourMap = $('#colourmap');
 	var displayFractalType = $('#fractaltype');
+	var displayNormalised = $('#normalised');
+	var displayRadius = $('#radius');
 	for (cmapName in colourMaps) {
 		// Generate this colourmap's table of colours
 		colourMaps[cmapName].genColourMap();
@@ -340,6 +389,8 @@ $(function() {
 		displayColourMap.val(mandelbrot.getColourMapName());
 		displayMaxIter.val(mandelbrot.getMaxIter());
 		displayFractalType.val(mandelbrot.getFractalType());
+		displayNormalised.prop('checked', mandelbrot.getNormalised());
+		displayRadius.val(mandelbrot.getRadius());
 	}
 	function update() {
 		updateControls();
@@ -383,6 +434,14 @@ $(function() {
 	});
 	$('#zoomout').on('click', function() {
 		mandelbrot.zoomOutBy(2);
+		update();
+	});
+	displayNormalised.on('change', function() {
+		mandelbrot.setNormalised($(this).prop('checked'));
+		update();
+	});
+	displayRadius.on('change', function() {
+		mandelbrot.setRadius($(this).val());
 		update();
 	});
 	update();
