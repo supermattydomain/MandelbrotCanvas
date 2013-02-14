@@ -138,8 +138,9 @@ var escapeTimeCalculators = {
      * TODO: detect underflow and use bignum library for greater precision?
      */
 	'mandelbrot': {
-    	escapeTime: function(x, y, maxIter, normalised) {
-    		var rl, im, sqrl = 0, sqim = 0, i, sqr = 2 * 2;
+		equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>2</sup> + z<sub>0</sub>',
+    	escapeTime: function(x, y, maxIter, radius, normalised) {
+    		var rl, im, sqrl = 0, sqim = 0, i, sqr = radius * radius;
 
     		for (i = 0, rl = x, im = y; i < maxIter; i++) {
     			sqrl = rl * rl;
@@ -164,8 +165,9 @@ var escapeTimeCalculators = {
      * I(n+1) = I(n)((3R(n)^2 - I(n)^2) + I(0))
      */
     'mandelbrot cubic': {
-    	escapeTime: function(x, y, maxIter, normalised) {
-    		var rl, im, sqrl = 0, sqim = 0, i, sqr = 2 * 2;
+    	equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>3</sup> + z<sub>0</sub>',
+    	escapeTime: function(x, y, maxIter, radius, normalised) {
+    		var rl, im, sqrl = 0, sqim = 0, i, sqr = radius * radius;
 
     		for (i = 0, rl = x, im = y; i < maxIter; i++) {
     			sqrl = rl * rl;
@@ -193,8 +195,9 @@ var escapeTimeCalculators = {
      * I(n+1)   = 4a^3b - 4ab^3 + I(0)
      */
     'mandelbrot quartic': {
-    	escapeTime: function(x, y, maxIter, normalised) {
-    		var rl, im, sqrl = 0, sqim = 0, newrl, i, sqr = 2 * 2;
+    	equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>4</sup> + z<sub>0</sub>',
+    	escapeTime: function(x, y, maxIter, radius, normalised) {
+    		var rl, im, sqrl = 0, sqim = 0, newrl, i, sqr = radius * radius;
 
     		for (i = 0, rl = x, im = y; i < maxIter; i++) {
     			sqrl = rl * rl;
@@ -212,7 +215,82 @@ var escapeTimeCalculators = {
     		}
     		return [i, 0, 4];
     	}
-    }
+    },
+	/**
+	 * Mandelbrot conjugate aka Mandelbar aka Tricorn: z(n+1) = con(z)^2 + z(0)
+	 */
+    'mandelbrot conjugate': {
+    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>2</sup> + z<sub>0</sub>',
+    	escapeTime: function(x, y, maxIter, radius, normalised) {
+    		var rl, im, sqrl = 0, sqim = 0, i, sqr = radius * radius;
+
+    		for (i = 0, rl = x, im = y; i < maxIter; i++) {
+    			sqrl = rl * rl;
+    			sqim = im * im;
+    			if (sqrl + sqim > sqr) {
+    				break;
+    			}
+    			im = (-2 * rl * im) + y;
+    			rl = sqrl - sqim + x;
+    		} // for iterations
+
+    		if (normalised) {
+        		return [i, Math.sqrt(sqrl + sqim), 2];
+    		}
+    		return [i, 0, 2];
+    	}
+	},
+	/**
+	 * Mandelbrot conjugate cubic: z(n+1) = con(z)^3 + z(0)
+	 */
+    'mandelbrot conjugate cubic': {
+    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>3</sup> + z<sub>0</sub>',
+    	escapeTime: function(x, y, maxIter, radius, normalised) {
+    		var rl, im, sqrl = 0, sqim = 0, i, sqr = radius * radius;
+
+    		for (i = 0, rl = x, im = y; i < maxIter; i++) {
+    			sqrl = rl * rl;
+    			sqim = im * im;
+    			if (sqrl + sqim > sqr) {
+    				break;
+    			}
+    			rl = rl * (sqrl - (3 * sqim)) + x;
+    			im = im * (sqim - (3 * sqrl)) + y;
+    		} // for iterations
+
+    		if (normalised) {
+        		return [i, Math.sqrt(sqrl + sqim), 3];
+    		}
+    		return [i, 0, 3];
+    	}
+	},
+	/**
+	 * Mandelbrot conjugate quartic: z(n+1) = con(z)^4 + z(0)
+	 */
+    'mandelbrot conjugate quartic': {
+    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>4</sup> + z<sub>0</sub>',
+    	escapeTime: function(x, y, maxIter, radius, normalised) {
+    		var rl, im, sqrl = 0, sqim = 0, i, sqr = radius * radius;
+
+    		for (i = 0, rl = x, im = y; i < maxIter; i++) {
+    			sqrl = rl * rl;
+    			sqim = im * im;
+    			if (sqrl + sqim > sqr) {
+    				break;
+    			}
+    			rlim = rl * im;
+    			diffsq = sqrl - sqim;
+    			im = y - (4 * rlim * diffsq);
+    			rl = (diffsq * diffsq) - (4 * rlim * rlim) + x;
+
+    		} // for iterations
+
+    		if (normalised) {
+        		return [i, Math.sqrt(sqrl + sqim), 4];
+    		}
+    		return [i, 0, 4];
+    	}
+	}
 };
 
 /**
@@ -263,7 +341,7 @@ function Mandelbrot(canvas, cmapName, etCalcName) {
 				for (c = 0; c < this.imageData.width; c++) {
 					x = this.colToX(c);
 					y = this.rowToY(r);
-					et = this.calc.escapeTime.call(this.calc, x, y, this.maxIter, this.normalised);
+					et = this.calc.escapeTime.call(this.calc, x, y, this.maxIter, this.radius, this.normalised);
 					colour = makeColour(this.cmap, et[0], et[1], et[2], this.maxIter, this.normalised);
 					if (this.updateTimeout != myUpdateTimeout) {
 						return; // Abort - no longer the current render thread
@@ -347,6 +425,9 @@ function Mandelbrot(canvas, cmapName, etCalcName) {
 		this.etCalcName = newCalcName;
 		this.calc = escapeTimeCalculators[newCalcName.toLowerCase()];
 	};
+	this.getFractalEquation = function() {
+		return this.calc.equation;
+	};
 	this.getNormalised = function() {
 		return this.normalised;
 	};
@@ -367,6 +448,7 @@ $(function() {
 	var displayFractalType = $('#fractaltype');
 	var displayNormalised = $('#normalised');
 	var displayRadius = $('#radius');
+	var displayEquation = $('#equation');
 	for (cmapName in colourMaps) {
 		// Generate this colourmap's table of colours
 		colourMaps[cmapName].genColourMap();
@@ -391,6 +473,7 @@ $(function() {
 		displayFractalType.val(mandelbrot.getFractalType());
 		displayNormalised.prop('checked', mandelbrot.getNormalised());
 		displayRadius.val(mandelbrot.getRadius());
+		displayEquation.html(mandelbrot.getFractalEquation());
 	}
 	function update() {
 		updateControls();
