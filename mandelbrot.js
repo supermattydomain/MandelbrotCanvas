@@ -13,7 +13,7 @@ function setPixel(imageData, x, y, r, g, b, a) {
 	imageData.data[i + 3] = a;
 }
 
-function toCamelCase(str) {
+function toInitialCaps(str) {
 	var ret = '';
 	str.split(' ').forEach(function(word) {
 		if (ret) {
@@ -113,15 +113,13 @@ for expansion of (a + b)^n below.
  */
 var escapeTimeCalculators = {
     /**
-     * Classical Mandelbrot (qudratic).
+     * Classical Mandelbrot (quadratic).
      * First term of orbit series =
      * z(0) = x(0) + y(0)i; then z(1) = z(0)^2 + z(0) = (x(0) + y(0)i)^2 + x(0) +
      * y(0)i; generally, z(n+1) = z(n)^2 + z(1) = z(n)^2 + x(1) + y(1)i Solving
-     * seperately for the real and imaginary components: x(n+1) = x(n)^2 -
-     * y(n)^2 + x(1), and y(n+1) = 2x(n)y(n) + y(1) TODO: detect consistently
-     * decreasing terms and bailout early? TODO: detect underflow and somehow
-     * get greater precision? avoid arbitrary-precision math lib as long as
-     * possible...
+     * separately for the real and imaginary components: x(n+1) = x(n)^2 -
+     * y(n)^2 + x(1), and y(n+1) = 2x(n)y(n) + y(1)
+     * TODO: detect underflow and use bignum library for greater precision?
      */
 	'mandelbrot': {
     	escapeTime: function(x, y, maxIter) {
@@ -325,13 +323,13 @@ $(function() {
 		colourMaps[cmapName].genColourMap();
 		// Generate an entry in the drop-down select list for this colour map
 		var option = $(document.createElement('option'));
-		option.text(toCamelCase(cmapName));
+		option.text(toInitialCaps(cmapName));
 		displayColourMap.append(option);
 	}
 	for (etCalcName in escapeTimeCalculators) {
 		// Generate an entry in the drop-down select list for this fractal type
 		var option = $(document.createElement('option'));
-		option.text(toCamelCase(etCalcName));
+		option.text(toInitialCaps(etCalcName));
 		displayFractalType.append(option);
 	}
 	var mandelbrot = new Mandelbrot(canvas, displayColourMap.val(), displayFractalType.val());
