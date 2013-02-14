@@ -140,9 +140,18 @@ var escapeTimeCalculators = {
 	'mandelbrot': {
 		equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>2</sup> + z<sub>0</sub>',
     	escapeTime: function(x, y, maxIter, radius, normalised) {
-    		var rl, im, sqrl = 0, sqim = 0, i, sqr = radius * radius;
+    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
+    		// Optimisation: is this point inside the main point-attractor cardioid?
+    		var q = (x - 0.25) * (x - 0.25) + y * y;
+    		if (q * (q + x - 0.25) < y * y / 4) {
+    			return [maxIter, 0, 2]; // Inside the cardioid
+    		}
+    		// Optimisation: is this point inside the period 2 bulb to the left of the cardioid?
+    		if ((x + 1) * (x + 1) + y * y < 0.0625) {
+    			return [maxIter, 0, 2]; // Inside period 2 bulb
+    		}
 
-    		for (i = 0, rl = x, im = y; i < maxIter; i++) {
+    		for (;;) {
     			sqrl = rl * rl;
     			sqim = im * im;
     			if (sqrl + sqim > sqr) {
@@ -150,7 +159,10 @@ var escapeTimeCalculators = {
     			}
     			im = (2 * rl * im) + y;
     			rl = sqrl - sqim + x;
-    		} // for iterations
+    			if (++i >= maxIter) {
+    				return [maxIter, 0, 2];
+    			}
+    		}
 
     		if (normalised) {
         		return [i, Math.sqrt(sqrl + sqim), 2];    			
@@ -167,9 +179,9 @@ var escapeTimeCalculators = {
     'mandelbrot cubic': {
     	equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>3</sup> + z<sub>0</sub>',
     	escapeTime: function(x, y, maxIter, radius, normalised) {
-    		var rl, im, sqrl = 0, sqim = 0, i, sqr = radius * radius;
+    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
 
-    		for (i = 0, rl = x, im = y; i < maxIter; i++) {
+    		for (;;) {
     			sqrl = rl * rl;
     			sqim = im * im;
     			if (sqrl + sqim > sqr) {
@@ -178,7 +190,10 @@ var escapeTimeCalculators = {
     			var newrl = rl * (sqrl - 3 * sqim) + x;
     			im = im * (3 * sqrl - sqim) + y;
     			rl = newrl;
-    		} // for iterations
+    			if (++i >= maxIter) {
+    				return [maxIter, 0, 3];
+    			}
+    		}
 
     		if (normalised) {
     			return [i, Math.sqrt(sqrl + sqim), 3];
@@ -197,9 +212,9 @@ var escapeTimeCalculators = {
     'mandelbrot quartic': {
     	equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>4</sup> + z<sub>0</sub>',
     	escapeTime: function(x, y, maxIter, radius, normalised) {
-    		var rl, im, sqrl = 0, sqim = 0, newrl, i, sqr = radius * radius;
+    		var rl = x, im = y, sqrl = 0, sqim = 0, newrl, i = 0, sqr = radius * radius;
 
-    		for (i = 0, rl = x, im = y; i < maxIter; i++) {
+    		for (;;) {
     			sqrl = rl * rl;
     			sqim = im * im;
     			if (sqrl + sqim > sqr) {
@@ -208,12 +223,42 @@ var escapeTimeCalculators = {
     			newrl = sqrl * sqrl + sqim * sqim - 6 * sqrl * sqim + x;
     			im = 4 * sqrl * rl * im - 4 * rl * sqim * im + y;
     			rl = newrl;
-    		} // for iterations
+    			if (++i >= maxIter) {
+    				return [maxIter, 0, 4];
+    			}
+    		}
 
     		if (normalised) {
         		return [i, Math.sqrt(sqrl + sqim), 4];
     		}
     		return [i, 0, 4];
+    	}
+    },
+    /**
+     * Mandelbrot quintic: z(n+1) = z(n)^5 + z(0)
+     */
+    'mandelbrot quintic': {
+    	equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>5</sup> + z<sub>0</sub>',
+    	escapeTime: function(x, y, maxIter, radius, normalised) {
+    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
+
+    		for (;;) {
+    			sqrl = rl * rl;
+    			sqim = im * im;
+    			if ((sqrl + sqim) > sqr) {
+    				break;
+    			}
+    			rl = (rl * ((sqrl * (sqrl - sqim)) - (9 * sqrl * sqim) + (5 * sqim * sqim))) + x;
+    			im = (im * ((sqim * (sqim - (10 * sqrl))) + (5 * sqrl * sqrl))) + y;
+    			if (++i >= maxIter) {
+    				return [maxIter, 0, 5];
+    			}
+    		}
+
+    		if (normalised) {
+        		return [i, Math.sqrt(sqrl + sqim), 5];
+    		}
+    		return [i, 0, 5];
     	}
     },
 	/**
@@ -222,9 +267,9 @@ var escapeTimeCalculators = {
     'mandelbrot conjugate': {
     	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>2</sup> + z<sub>0</sub>',
     	escapeTime: function(x, y, maxIter, radius, normalised) {
-    		var rl, im, sqrl = 0, sqim = 0, i, sqr = radius * radius;
+    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
 
-    		for (i = 0, rl = x, im = y; i < maxIter; i++) {
+    		for (;;) {
     			sqrl = rl * rl;
     			sqim = im * im;
     			if (sqrl + sqim > sqr) {
@@ -232,7 +277,10 @@ var escapeTimeCalculators = {
     			}
     			im = (-2 * rl * im) + y;
     			rl = sqrl - sqim + x;
-    		} // for iterations
+    			if (++i >= maxIter) {
+    				return [maxIter, 0, 2];
+    			}
+    		}
 
     		if (normalised) {
         		return [i, Math.sqrt(sqrl + sqim), 2];
@@ -246,9 +294,9 @@ var escapeTimeCalculators = {
     'mandelbrot conjugate cubic': {
     	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>3</sup> + z<sub>0</sub>',
     	escapeTime: function(x, y, maxIter, radius, normalised) {
-    		var rl, im, sqrl = 0, sqim = 0, i, sqr = radius * radius;
+    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
 
-    		for (i = 0, rl = x, im = y; i < maxIter; i++) {
+    		for (;;) {
     			sqrl = rl * rl;
     			sqim = im * im;
     			if (sqrl + sqim > sqr) {
@@ -256,7 +304,10 @@ var escapeTimeCalculators = {
     			}
     			rl = rl * (sqrl - (3 * sqim)) + x;
     			im = im * (sqim - (3 * sqrl)) + y;
-    		} // for iterations
+    			if (++i >= maxIter) {
+    				return [maxIter, 0, 3];
+    			}
+    		}
 
     		if (normalised) {
         		return [i, Math.sqrt(sqrl + sqim), 3];
@@ -270,9 +321,9 @@ var escapeTimeCalculators = {
     'mandelbrot conjugate quartic': {
     	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>4</sup> + z<sub>0</sub>',
     	escapeTime: function(x, y, maxIter, radius, normalised) {
-    		var rl, im, sqrl = 0, sqim = 0, i, sqr = radius * radius;
+    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
 
-    		for (i = 0, rl = x, im = y; i < maxIter; i++) {
+    		for (;;) {
     			sqrl = rl * rl;
     			sqim = im * im;
     			if (sqrl + sqim > sqr) {
@@ -282,13 +333,42 @@ var escapeTimeCalculators = {
     			diffsq = sqrl - sqim;
     			im = y - (4 * rlim * diffsq);
     			rl = (diffsq * diffsq) - (4 * rlim * rlim) + x;
-
-    		} // for iterations
+    			if (++i >= maxIter) {
+    				return [maxIter, 0, 4];
+    			}
+    		}
 
     		if (normalised) {
         		return [i, Math.sqrt(sqrl + sqim), 4];
     		}
     		return [i, 0, 4];
+    	}
+	},
+	/**
+	 * Mandelbrot conjugate quintic: z(n+1) = con(z)^5 + z(0)
+	 */
+    'mandelbrot conjugate quintic': {
+    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>5</sup> + z<sub>0</sub>',
+    	escapeTime: function(x, y, maxIter, radius, normalised) {
+    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
+
+    		for (;;) {
+    			sqrl = rl * rl;
+    			sqim = im * im;
+    			if ((sqrl + sqim) > sqr) {
+    				break;
+    			}
+    			rl = (rl * ((sqrl * (sqrl - sqim)) + (sqim * ((5 * sqim) - (9 * sqrl))))) + x;
+    			im = (im * ((sqim * (sqrl - sqim)) + (sqrl * ((9 * sqim) - (5 * sqrl))))) + y;
+    			if (++i >= maxIter) {
+    				return [maxIter, 0, 5];
+    			}
+    		}
+
+    		if (normalised) {
+        		return [i, Math.sqrt(sqrl + sqim), 5];
+    		}
+    		return [i, 0, 5];
     	}
 	}
 };
