@@ -2,7 +2,8 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>The Mandelbrot Set</title>
+<title>The Mandelbrot Set and Variations</title>
+<link rel="stylesheet" href="styles.css" type="text/css" media="screen" />
 <script type="text/javascript" src="../lib/jquery/dist/jquery.js"></script>
 <script type="text/javascript" src="../lib/jsdebug/debug.js"></script>
 <script type="text/javascript" src="../lib/colour_conversions/colour_conversions.js"></script>
@@ -10,13 +11,13 @@
 </head>
 <body>
 
-<h1>The Mandelbrot Set</h1>
+<h1>The Mandelbrot Set and Variations</h1>
 
-<div id="equation"></div>
+<p><span id="name"></span>: <span id="equation"></span></p>
 
-<p>Clicking on an area centres the view there and zooms in by a factor of two.</p>
+<p>Click on the image to zoom in, or use the buttons below.</p>
 
-<div style="float: left">
+<div class="mandelbrot">
 <canvas id="mandelbrot" width="400" height="400"></canvas>
 </div>
 
@@ -32,13 +33,18 @@
 <tr><td>Colour map</td><td><select id="colourmap"></select></td></tr>
 <tr><td>Fractal type</td><td><select id="fractaltype"></select></td></tr>
 <tr><td colspan="2"><input type="checkbox" id="normalised"><label for="normalised">Normalise iteration count</label></td></tr>
+<tr><td colspan="2"><button id="zoomin">Zoom in</button><button id="zoomout">Zoom out</button>
+</td></tr>
 </table>
-<button id="zoomin">Zoom in</button>
-<button id="zoomout">Zoom out</button>
 </div>
 
-<div style="clear: left">
-<span style="font-size: smaller">Brought to you by the HTML5 canvas and jQuery.</span>
+<div class="legend">Brought to you by the HTML5 canvas and jQuery.</div>
+
+<div>
+<p>Some interesting places:</p>
+<ul>
+<li>A Julia set lookalike within the Mandelbrot set at -0.743643887037151 + 0.131825904205330i
+</ul>
 </div>
 
 </body>

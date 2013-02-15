@@ -1,0 +1,10 @@
+@CHARSET "UTF-8";
+
+.mandelbrot {
+	float: left;
+}
+
+.legend {
+	clear: left;
+	font-size: smaller;
+}

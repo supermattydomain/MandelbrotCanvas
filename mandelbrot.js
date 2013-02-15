@@ -11,7 +11,8 @@ jQuery(function() {
 			displayColourMap, displayFractalType,
 			displayNormalised, displayRadius,
 			displayEquation, mandelbrot,
-			buttonZoomIn, buttonZoomOut;
+			buttonZoomIn, buttonZoomOut,
+			displayName;
 		/**
 		 * Set a pixel's rgba values in a canvas ImageData object.
 		 */
@@ -526,6 +527,7 @@ jQuery(function() {
 		displayEquation = $('#equation');
 		buttonZoomIn = $('#zoomin');
 		buttonZoomOut = $('#zoomout');
+		displayName = $('#name');
 		for (cmapName in colourMaps) {
 			// Generate an entry in the drop-down select list for this colour map
 			var option = $(document.createElement('option'));
@@ -549,6 +551,7 @@ jQuery(function() {
 			displayNormalised.prop('checked', mandelbrot.getNormalised());
 			displayRadius.val(mandelbrot.getRadius());
 			displayEquation.html(mandelbrot.getFractalEquation());
+			displayName.text(mandelbrot.getFractalType());
 		}
 		function update() {
 			updateControls();
