@@ -4,6 +4,14 @@
 
 jQuery(function() {
 	(function($) {
+		var canvas,
+			displayMouseRl, displayMouseIm,
+			displayCentreRl, displayCentreIm,
+			displayScale, displayMaxIter,
+			displayColourMap, displayFractalType,
+			displayNormalised, displayRadius,
+			displayEquation, mandelbrot,
+			buttonZoomIn, buttonZoomOut;
 		/**
 		 * Set a pixel's rgba values in a canvas ImageData object.
 		 */
@@ -31,6 +39,10 @@ jQuery(function() {
 			// points in set are black
 			if (n == maxIter) {
 				return [0, 0, 0, 255];
+			}
+			// Lazily generate this colourmap's table of colours
+			if (!cmap.colourMap.length) {
+				cmap.genColourMap();
 			}
 			// outside set, iteration count modulo entire colourmap size selects colour
 			if (!normalised) {
@@ -369,20 +381,6 @@ jQuery(function() {
 		 * @param etCalcName Name of the escape-time calculator to use
 		 */
 		function Mandelbrot(canvas, cmapName, etCalcName) {
-			this.etCalcName = etCalcName;
-			if (this.etCalcName.toLowerCase() in escapeTimeCalculators) {
-				this.calc = escapeTimeCalculators[this.etCalcName.toLowerCase()];
-			} else {
-				debug('Unknown escape time calculator name "' + this.etCalcName + "'");
-				return;
-			}
-			this.cmapName = cmapName;
-			if (this.cmapName.toLowerCase() in colourMaps) {
-				this.cmap = colourMaps[this.cmapName.toLowerCase()];
-			} else {
-				debug('Unknown colour map name "' + this.cmapName + "'");
-				return;
-			}
 			this.canvas = canvas;
 			this.context = this.canvas[0].getContext("2d");
 			this.imageData = this.context.getImageData(0, 0, this.canvas.width(), this.canvas.height());
@@ -396,15 +394,19 @@ jQuery(function() {
 			 * However, setting radius > 2 improves the smoothness of the colouring.
 			 */
 			this.radius = 3;
-			this.colToX = function(c) {
+			this.setFractalType(etCalcName);
+			this.setColourMapName(cmapName);
+		}
+		$.extend(Mandelbrot.prototype, {
+			colToX: function(c) {
 				return  (c + 0.5 - this.imageData.width  / 2) * this.scale + this.centreRl;
-			};
-			this.rowToY = function(r) {
+			},
+			rowToY: function(r) {
 				// Inversion due to the canvas' inverted-Y co-ordinate system.
 				// The set is symmetrical, but the co-ordinates are shown to the user.
 				return -(r + 0.5 - this.imageData.height / 2) * this.scale + this.centreIm;
-			};
-			this.update = function() {
+			},
+			update: function() {
 				this.stop();
 				function updateFunc(myUpdateTimeout) {
 					this.imageData = this.context.getImageData(0, 0, this.canvas.width(), this.canvas.height());
@@ -427,11 +429,11 @@ jQuery(function() {
 				this.updateTimeout = setTimeout(function() {
 					updateFunc.call(that, that.updateTimeout);
 				});
-			};
-			this.stop = function() {
+			},
+			stop: function() {
 				clearTimeout(this.updateTimeout);
 				this.updateTimeout = null;
-			};
+			},
 			/**
 			 * FIXME: I would like to simply translate and scale the canvas here;
 			 * but at time of writing, there is no portable way to retrieve the canvas'
@@ -441,88 +443,90 @@ jQuery(function() {
 			 * over-ride every relevant canvas mutator so it concatenates the newly-applied transform
 			 * with the shadow matrix, then regurgitate the shadow matrix on demand.
 			 */
-			this.getCentre = function() {
+			getCentre: function() {
 				return [ this.centreRl, this.centreIm ];
-			};
-			this.setCentre = function(rl, im) {
+			},
+			setCentre: function(rl, im) {
 				this.centreRl = rl;
 				this.centreIm = im;
-			};
-			this.getScale = function() {
+			},
+			getScale: function() {
 				return this.scale;
-			};
-			this.setScale = function(newScale) {
+			},
+			setScale: function(newScale) {
 				this.scale = newScale;
 				return this.scale;
-			};
-			this.zoomBy = function(factor) {
+			},
+			zoomBy: function(factor) {
 				this.scale *= factor;
 				return this.scale;
-			};
-			this.zoomInBy = function(factor) {
+			},
+			zoomInBy: function(factor) {
 				return this.zoomBy(1 / factor);
-			};
-			this.zoomOutBy = this.zoomBy;
-			this.getMaxIter = function() {
+			},
+			zoomOutBy: function(factor) {
+				return this.zoomBy(factor);
+			},
+			getMaxIter: function() {
 				return this.maxIter;
-			};
-			this.setMaxIter = function(newMaxIter) {
+			},
+			setMaxIter: function(newMaxIter) {
 				this.maxIter = newMaxIter;
-			};
-			this.getRadius = function() {
+			},
+			getRadius: function() {
 				return this.radius;
-			};
-			this.setRadius = function(newRadius) {
+			},
+			setRadius: function(newRadius) {
 				this.radius = newRadius;
-			};
-			this.getColourMapName = function() {
+			},
+			getColourMapName: function() {
 				return this.cmapName;
-			};
-			this.setColourMapName = function(newCmapName) {
+			},
+			setColourMapName: function(newCmapName) {
 				if (!(newCmapName.toLowerCase() in colourMaps)) {
 					debug('Unknown colour map name "' + newCmapName + "'");
 					return;
 				}
 				this.cmapName = newCmapName;
 				this.cmap = colourMaps[newCmapName.toLowerCase()];
-			};
-			this.getFractalType = function() {
+			},
+			getFractalType: function() {
 				return this.etCalcName;
-			};
-			this.setFractalType = function(newCalcName) {
+			},
+			setFractalType: function(newCalcName) {
 				if (!(newCalcName.toLowerCase() in escapeTimeCalculators)) {
 					debug('Unknown escape time calculator name "' + newCalcName + "'");
 					return;
 				}
 				this.etCalcName = newCalcName;
 				this.calc = escapeTimeCalculators[newCalcName.toLowerCase()];
-			};
-			this.getFractalEquation = function() {
+			},
+			getFractalEquation: function() {
 				return this.calc.equation;
-			};
-			this.getNormalised = function() {
+			},
+			getNormalised: function() {
 				return this.normalised;
-			};
-			this.setNormalised = function(newNormalised) {
+			},
+			setNormalised: function(newNormalised) {
 				this.normalised = newNormalised;
-			};
-		}
+			}
+		});
 		// Create a Mandelbrot set and controls
-		var canvas = $('#mandelbrot');
-		var displayMouseRl = $('#mouserl');
-		var displayMouseIm = $('#mouseim');
-		var displayCentreRl = $('#centrerl');
-		var displayCentreIm = $('#centreim');
-		var displayScale = $('#scale');
-		var displayMaxIter = $('#maxiter');
-		var displayColourMap = $('#colourmap');
-		var displayFractalType = $('#fractaltype');
-		var displayNormalised = $('#normalised');
-		var displayRadius = $('#radius');
-		var displayEquation = $('#equation');
+		canvas = $('#mandelbrot');
+		displayMouseRl = $('#mouserl');
+		displayMouseIm = $('#mouseim');
+		displayCentreRl = $('#centrerl');
+		displayCentreIm = $('#centreim');
+		displayScale = $('#scale');
+		displayMaxIter = $('#maxiter');
+		displayColourMap = $('#colourmap');
+		displayFractalType = $('#fractaltype');
+		displayNormalised = $('#normalised');
+		displayRadius = $('#radius');
+		displayEquation = $('#equation');
+		buttonZoomIn = $('#zoomin');
+		buttonZoomOut = $('#zoomout');
 		for (cmapName in colourMaps) {
-			// Generate this colourmap's table of colours
-			colourMaps[cmapName].genColourMap();
 			// Generate an entry in the drop-down select list for this colour map
 			var option = $(document.createElement('option'));
 			option.text(toInitialCaps(cmapName));
@@ -534,7 +538,7 @@ jQuery(function() {
 			option.text(toInitialCaps(etCalcName));
 			displayFractalType.append(option);
 		}
-		var mandelbrot = new Mandelbrot(canvas, displayColourMap.val(), displayFractalType.val());
+		mandelbrot = new Mandelbrot(canvas, displayColourMap.val(), displayFractalType.val());
 		function updateControls() {
 			displayCentreRl.val(mandelbrot.getCentre()[0]);
 			displayCentreIm.val(mandelbrot.getCentre()[1]);
@@ -574,19 +578,19 @@ jQuery(function() {
 			mandelbrot.setMaxIter(parseInt($(this).val(), 10));
 			update();
 		});
-		displayColourMap.change(function() {
+		displayColourMap.on('change', function() {
 			mandelbrot.setColourMapName($(this).val());
 			update();
 		});
-		displayFractalType.change(function() {
+		displayFractalType.on('change', function() {
 			mandelbrot.setFractalType($(this).val());
 			update();
 		});
-		$('#zoomin').on('click', function() {
+		buttonZoomIn.on('click', function() {
 			mandelbrot.zoomInBy(2);
 			update();
 		});
-		$('#zoomout').on('click', function() {
+		buttonZoomOut.on('click', function() {
 			mandelbrot.zoomOutBy(2);
 			update();
 		});
