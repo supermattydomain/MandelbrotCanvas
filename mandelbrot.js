@@ -13,28 +13,6 @@ jQuery(function() {
 			displayEquation, mandelbrot,
 			buttonZoomIn, buttonZoomOut,
 			displayName;
-		/**
-		 * Set a pixel's rgba values in a canvas ImageData object.
-		 */
-		function setPixel(imageData, x, y, r, g, b, a) {
-			var i = (y * imageData.width * 4) + (x * 4);
-			imageData.data[i + 0] = r;
-			imageData.data[i + 1] = g;
-			imageData.data[i + 2] = b;
-			imageData.data[i + 3] = a;
-		}
-
-		function toInitialCaps(str) {
-			var ret = '';
-			str.split(' ').forEach(function(word) {
-				if (ret) {
-					ret += ' ';
-				}
-				ret += word.charAt(0).toUpperCase() + word.substring(1);
-			});
-			return ret;
-		}
-
 		function makeColour(cmap, n, lastVal, power, maxIter, normalised) {
 			var frac, thisColour, nextColour;
 			// points in set are black
@@ -531,13 +509,13 @@ jQuery(function() {
 		for (cmapName in colourMaps) {
 			// Generate an entry in the drop-down select list for this colour map
 			var option = $(document.createElement('option'));
-			option.text(toInitialCaps(cmapName));
+			option.text(ucFirstAll(cmapName));
 			displayColourMap.append(option);
 		}
 		for (etCalcName in escapeTimeCalculators) {
 			// Generate an entry in the drop-down select list for this fractal type
 			var option = $(document.createElement('option'));
-			option.text(toInitialCaps(etCalcName));
+			option.text(ucFirstAll(etCalcName));
 			displayFractalType.append(option);
 		}
 		mandelbrot = new Mandelbrot(canvas, displayColourMap.val(), displayFractalType.val());
