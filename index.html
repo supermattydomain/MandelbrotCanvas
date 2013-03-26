@@ -4,7 +4,12 @@
 <meta charset="UTF-8">
 <title>The Mandelbrot Set and Variations</title>
 <link rel="stylesheet" href="styles.css" type="text/css" media="screen" />
+<link rel="stylesheet" type="text/css" href="../lib/jquery-ui/themes/base/jquery.ui.all.css">
 <script type="text/javascript" src="../lib/jquery/dist/jquery.js"></script>
+<script language="javascript" type="text/javascript" src="../lib/jquery-ui/ui/jquery.ui.core.js"></script>
+<script language="javascript" type="text/javascript" src="../lib/jquery-ui/ui/jquery.ui.widget.js"></script>
+<script language="javascript" type="text/javascript" src="../lib/jquery-ui/ui/jquery.ui.mouse.js"></script>
+<script language="javascript" type="text/javascript" src="../lib/jquery-ui/ui/jquery.ui.resizable.js"></script>
 <script type="text/javascript" src="../lib/jsdebug/debug.js"></script>
 <script type="text/javascript" src="../lib/js-lib/strings.js"></script>
 <script type="text/javascript" src="../lib/js-lib/canvas.js"></script>
@@ -19,7 +24,7 @@
 
 <p>Click on the image to zoom in, or use the buttons below.</p>
 
-<div class="mandelbrot">
+<div class="mandelbrot resizable ui-widget-content">
 <canvas id="mandelbrot" width="400" height="400"></canvas>
 </div>
 

@@ -396,7 +396,7 @@ jQuery(function() {
 							y = this.rowToY(r);
 							et = this.calc.escapeTime.call(this.calc, x, y, this.maxIter, this.radius, this.normalised);
 							colour = makeColour(this.cmap, et[0], et[1], et[2], this.maxIter, this.normalised);
-							if (this.updateTimeout != myUpdateTimeout) {
+							if (this.updateTimeout !== myUpdateTimeout) {
 								return; // Abort - no longer the current render thread
 							} 
 							setPixel(this.imageData, c, r, colour[0], colour[1], colour[2], colour[3]);
@@ -409,18 +409,24 @@ jQuery(function() {
 					updateFunc.call(that, that.updateTimeout);
 				});
 			},
+			onResize: function() {
+				this.imageData = this.context.getImageData(0, 0, this.canvas.width(), this.canvas.height());
+				this.update();
+			},
 			stop: function() {
 				clearTimeout(this.updateTimeout);
 				this.updateTimeout = null;
 			},
 			/**
-			 * FIXME: I would like to simply translate and scale the canvas here;
+			 * NOTE: I would like to simply translate and scale the canvas here;
 			 * but at time of writing, there is no portable way to retrieve the canvas'
 			 * current transform matrix. So I simply do my own, manual transforms.
 			 * One could implement (and some have) a polyfill for this:
 			 * maintain a 'shadow' copy of the canvas' current transform matrix,
 			 * over-ride every relevant canvas mutator so it concatenates the newly-applied transform
 			 * with the shadow matrix, then regurgitate the shadow matrix on demand.
+			 * No, that would not work.
+			 * The Canvas' putImageData method does not use the transformation matrix.
 			 */
 			getCentre: function() {
 				return [ this.centreRl, this.centreIm ];
@@ -582,6 +588,14 @@ jQuery(function() {
 		displayRadius.on('change', function() {
 			mandelbrot.setRadius($(this).val());
 			update();
+		});
+		var resizable = $('.resizable');
+		resizable.resizable({ handles: "all", animate: false, ghost: true, autohide: false, aspectRatio: false });
+		resizable.on('resizestop', function(event, ui) {
+			canvas.css({ width: '100%', height: '100%' });
+			canvas[0].width = canvas.width();
+			canvas[0].height = canvas.height();
+			mandelbrot.onResize();
 		});
 		update();
 	})(jQuery);

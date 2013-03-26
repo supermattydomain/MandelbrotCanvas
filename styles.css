@@ -8,3 +8,8 @@
 	clear: left;
 	font-size: smaller;
 }
+
+.resizable {
+	float: left; /* trigger shrinkwrap */
+	padding: 10px;
+}
