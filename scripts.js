@@ -23,6 +23,7 @@ jQuery(function() {
 		     * A ramp through the rainbow in hue.
 		     */
 		    'rainbow': {
+		    	name: 'rainbow',
 		    	numGradations: 50, // Gradations per colour map
 		    	colourMap: [],
 		    	genColourMap: function() {
@@ -37,6 +38,7 @@ jQuery(function() {
 		     * A 'smooth' ramp from red to green to blue and back to red.
 		     */
 		   	'smooth': {
+		   		name: 'smooth',
 		    	numGradations: 20, // Gradations per colour transition; three transitions per colour map
 		    	colourMap: [],
 		    	genColourMap: function() {
@@ -343,12 +345,12 @@ jQuery(function() {
 			option.text(ucFirstAll(etCalcName));
 			displayFractalType.append(option);
 		}
-		mandelbrot = new Mandelbrot(canvas, escapeTimeCalculators[displayFractalType.val().toLowerCase()], colourMaps, displayColourMap.val(), renderProgress);
+		mandelbrot = new Mandelbrot(canvas, escapeTimeCalculators[displayFractalType.val().toLowerCase()], colourMaps[displayColourMap.val().toLowerCase()], renderProgress);
 		function updateControls() {
 			displayCentreRl.val(mandelbrot.getCentre()[0]);
 			displayCentreIm.val(mandelbrot.getCentre()[1]);
 			displayScale.val(mandelbrot.getScale());
-			displayColourMap.val(mandelbrot.getColourMapName());
+			displayColourMap.val(ucFirstAll(mandelbrot.getColourMapName()));
 			displayMaxIter.val(mandelbrot.getMaxIter());
 			displayFractalType.val(ucFirstAll(mandelbrot.getFractalName()));
 			displayNormalised.prop('checked', mandelbrot.getNormalised());
@@ -385,7 +387,7 @@ jQuery(function() {
 			update();
 		});
 		displayColourMap.on('change', function() {
-			mandelbrot.setColourMapName($(this).val());
+			mandelbrot.setColourMap(colourMaps[$(this).val().toLowerCase()]);
 			update();
 		});
 		displayFractalType.on('change', function() {
