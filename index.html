@@ -4,16 +4,18 @@
 <meta charset="UTF-8">
 <title>The Mandelbrot Set and Variations</title>
 <link rel="stylesheet" href="styles.css" type="text/css" media="screen" />
-<link rel="stylesheet" type="text/css" href="../lib/jquery-ui/themes/base/jquery.ui.all.css">
+<link rel="stylesheet" type="text/css" href="../lib/jquery-ui/themes/base/jquery.ui.all.css" />
 <script type="text/javascript" src="../lib/jquery/dist/jquery.js"></script>
-<script language="javascript" type="text/javascript" src="../lib/jquery-ui/ui/jquery.ui.core.js"></script>
-<script language="javascript" type="text/javascript" src="../lib/jquery-ui/ui/jquery.ui.widget.js"></script>
-<script language="javascript" type="text/javascript" src="../lib/jquery-ui/ui/jquery.ui.mouse.js"></script>
-<script language="javascript" type="text/javascript" src="../lib/jquery-ui/ui/jquery.ui.resizable.js"></script>
+<script type="text/javascript" src="../lib/jquery-ui/ui/jquery.ui.core.js"></script>
+<script type="text/javascript" src="../lib/jquery-ui/ui/jquery.ui.widget.js"></script>
+<script type="text/javascript" src="../lib/jquery-ui/ui/jquery.ui.mouse.js"></script>
+<script type="text/javascript" src="../lib/jquery-ui/ui/jquery.ui.resizable.js"></script>
+<script type="text/javascript" src="../lib/jquery-ui/ui/jquery.ui.progressbar.js"></script>
 <script type="text/javascript" src="../lib/jsdebug/debug.js"></script>
 <script type="text/javascript" src="../lib/js-lib/strings.js"></script>
+<script type="text/javascript" src="../lib/js-lib/colours.js"></script>
 <script type="text/javascript" src="../lib/js-lib/canvas.js"></script>
-<script type="text/javascript" src="../lib/colour_conversions/colour_conversions.js"></script>
+<script type="text/javascript" src="../lib/js-lib/colour_conversions.js"></script>
 <script type="text/javascript" src="mandelbrot.js"></script>
 </head>
 <body>
@@ -22,9 +24,11 @@
 
 <p><span id="name"></span>: <span id="equation"></span></p>
 
-<p>Click on the image to zoom in, or use the buttons below.</p>
+<p>Click on part of the image to zoom in, or use the buttons below.
+You can resize the image by dragging its edges.
+</p>
 
-<div class="mandelbrot resizable ui-widget-content">
+<div class="resizable ui-widget-content">
 <canvas id="mandelbrot" width="400" height="400"></canvas>
 </div>
 
@@ -37,22 +41,22 @@
 <tr><td>Max radius</td><td><input id="radius"></td></tr>
 <tr><td>Mouse real</td><td><input id="mouserl" disabled="disabled"></td></tr>
 <tr><td>Mouse imaginary</td><td><input id="mouseim" disabled="disabled"></td></tr>
-<tr><td>Colour map</td><td><select id="colourmap"></select></td></tr>
 <tr><td>Fractal type</td><td><select id="fractaltype"></select></td></tr>
+<tr><td>Colour map</td><td><select id="colourmap"></select></td></tr>
 <tr><td colspan="2"><input type="checkbox" id="normalised"><label for="normalised">Normalise iteration count</label></td></tr>
-<tr><td colspan="2"><button id="zoomin">Zoom in</button><button id="zoomout">Zoom out</button>
-</td></tr>
+<tr><td colspan="2"><button id="zoomin">Zoom in</button><button id="zoomout">Zoom out</button><button id="stop">Stop</button></td></tr>
+<tr><td colspan="2"><div id="renderProgress"></div></td></tr>
 </table>
 </div>
 
-<div class="legend">Brought to you by the HTML5 canvas and jQuery.</div>
+<br class="clearfloat" />
 
 <div>
 <p>Some interesting places:</p>
 <ul>
-<li>A Julia set lookalike within the Mandelbrot set at -0.743643887037151 + 0.131825904205330i
+<li>A <a href="#" id="preset1">Julia set lookalike within the Mandelbrot set</a> at -0.743643887037151 + 0.131825904205330i
 </ul>
 </div>
-
+ 
 </body>
 </html>

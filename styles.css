@@ -1,15 +1,17 @@
 @CHARSET "UTF-8";
 
-.mandelbrot {
-	float: left;
-}
-
-.legend {
-	clear: left;
-	font-size: smaller;
-}
-
 .resizable {
 	float: left; /* trigger shrinkwrap */
 	padding: 10px;
+}
+
+.clearfloat {
+	clear: both;
+	height: 0;
+	font-size: 1px;
+	line-height: 0px;
+}
+
+#renderProgress {
+	height: 1em;
 }

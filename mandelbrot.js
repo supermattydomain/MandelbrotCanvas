@@ -4,19 +4,20 @@
 
 jQuery(function() {
 	(function($) {
-		var canvas,
-			displayMouseRl, displayMouseIm,
-			displayCentreRl, displayCentreIm,
-			displayScale, displayMaxIter,
-			displayColourMap, displayFractalType,
-			displayNormalised, displayRadius,
-			displayEquation, mandelbrot,
-			buttonZoomIn, buttonZoomOut,
-			displayName;
+		var canvas = $('#mandelbrot'),
+			displayMouseRl = $('#mouserl'), displayMouseIm = $('#mouseim'),
+			displayCentreRl = $('#centrerl'), displayCentreIm = $('#centreim'),
+			displayScale = $('#scale'), displayMaxIter = $('#maxiter'),
+			displayColourMap = $('#colourmap'), displayFractalType = $('#fractaltype'),
+			displayNormalised = $('#normalised'), displayRadius = $('#radius'),
+			displayEquation = $('#equation'), mandelbrot,
+			buttonZoomIn = $('#zoomin'), buttonZoomOut = $('#zoomout'),
+			buttonStop = $('#stop'), displayName = $('#name'),
+			resizable = $('.resizable'),
+			renderProgress = $('#renderProgress');
 		function makeColour(cmap, n, lastVal, power, maxIter, normalised) {
-			var frac, thisColour, nextColour;
 			// points in set are black
-			if (n == maxIter) {
+			if (n === maxIter) {
 				return [0, 0, 0, 255];
 			}
 			// Lazily generate this colourmap's table of colours
@@ -33,19 +34,11 @@ jQuery(function() {
 			 * between two neighbouring colour map entries.
 			 */
 			n = Math.max(0, n + 1 - Math.log(Math.log(lastVal)) / Math.log(power));
-			frac = n - Math.floor(n);
-			if (frac < 0 || frac > 1) {
-				throw "frac " + frac + " not in [0..1]";
-			}
-			n = Math.floor(n);
-			thisColour = cmap.colourMap[n % cmap.colourMap.length];
-			nextColour = cmap.colourMap[(n + 1) % cmap.colourMap.length];
-			return [
-			    thisColour[0] + frac * (nextColour[0] - thisColour[0]),
-			    thisColour[1] + frac * (nextColour[1] - thisColour[1]),
-			    thisColour[2] + frac * (nextColour[2] - thisColour[2]),
-			    thisColour[3] + frac * (nextColour[3] - thisColour[3]),
-			];
+			return interpolateColour(
+				cmap.colourMap[Math.floor(n) % cmap.colourMap.length],
+				cmap.colourMap[(Math.floor(n) + 1) % cmap.colourMap.length],
+				n - Math.floor(n)
+			);
 		}
 		/**
 		 * Various ways of mapping escape-time values to a repeating range of colours.
@@ -106,6 +99,7 @@ jQuery(function() {
 		 * radius. For the Mandelbrot set relation, any point that escapes a circle
 		 * of radius 2 increases to infinity and therefore is not in the set. If we
 		 * reach n iterations, give up and return n.
+		 * TODO: The below calculations might be more efficient in polar co-ords.
 		 */
 		var escapeTimeCalculators = {
 		    /**
@@ -121,9 +115,9 @@ jQuery(function() {
 			'mandelbrot': {
 				equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>2</sup> + z<sub>0</sub>',
 		    	escapeTime: function(x, y, maxIter, radius, normalised) {
-		    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
+		    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius, q;
 		    		// Optimisation: is this point inside the main point-attractor cardioid?
-		    		var q = (x - 0.25) * (x - 0.25) + y * y;
+		    		q = (x - 0.25) * (x - 0.25) + y * y;
 		    		if (q * (q + x - 0.25) < y * y / 4) {
 		    			return [maxIter, 0, 2]; // Inside the cardioid
 		    		}
@@ -153,14 +147,14 @@ jQuery(function() {
 		    },
 		    /**
 		     * Mandelbrot cubic: z(n+1) = z(n)^3 + z(0)
-		     * R(n+1) = R(n)(R(n)^2 - 3I(n)^2) +R(0)
+		     * R(n+1) = R(n)(R(n)^2 - 3I(n)^2) + R(0)
 		     * and
 		     * I(n+1) = I(n)((3R(n)^2 - I(n)^2) + I(0))
 		     */
 		    'mandelbrot cubic': {
 		    	equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>3</sup> + z<sub>0</sub>',
 		    	escapeTime: function(x, y, maxIter, radius, normalised) {
-		    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
+		    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius, newrl;
 
 		    		for (;;) {
 		    			sqrl = rl * rl;
@@ -168,7 +162,7 @@ jQuery(function() {
 		    			if (sqrl + sqim > sqr) {
 		    				break;
 		    			}
-		    			var newrl = rl * (sqrl - 3 * sqim) + x;
+		    			newrl = rl * (sqrl - 3 * sqim) + x;
 		    			im = im * (3 * sqrl - sqim) + y;
 		    			rl = newrl;
 		    			if (++i >= maxIter) {
@@ -385,33 +379,55 @@ jQuery(function() {
 				// The set is symmetrical, but the co-ordinates are shown to the user.
 				return -(r + 0.5 - this.imageData.height / 2) * this.scale + this.centreIm;
 			},
+			/**
+			 * The below performs the calculations and redraws in multiple calls
+			 * to a function using setTimeout, so that the browser can redraw
+			 * the UI between calls.
+			 * TODO: Use web worker if available
+			 */
 			update: function() {
+				var bandHeightMin = 10, bandHeightMax = 20;
+				var r = 0, that = this, bandHeight = Math.max(bandHeightMin, Math.min(bandHeightMax, Math.floor(this.imageData.height / 10)));
 				this.stop();
-				function updateFunc(myUpdateTimeout) {
-					this.imageData = this.context.getImageData(0, 0, this.canvas.width(), this.canvas.height());
-					var r, c, x, y, et, colour;
-					for (r = 0; r < this.imageData.height; r++) {
-						for (c = 0; c < this.imageData.width; c++) {
-							x = this.colToX(c);
-							y = this.rowToY(r);
-							et = this.calc.escapeTime.call(this.calc, x, y, this.maxIter, this.radius, this.normalised);
-							colour = makeColour(this.cmap, et[0], et[1], et[2], this.maxIter, this.normalised);
-							if (this.updateTimeout !== myUpdateTimeout) {
+				renderProgress.progressbar('option', 'value', 0);
+				function updateFunc(mandelbrot, myUpdateTimeout) {
+					var rowEnd = Math.min(r + bandHeight, mandelbrot.canvas.height()), c, x, y, et, colour;
+					mandelbrot.imageData = mandelbrot.context.getImageData(0, 0, mandelbrot.canvas.width(), mandelbrot.canvas.height());
+					for (; r < rowEnd; r++) {
+						for (c = 0; c < mandelbrot.imageData.width; c++) {
+							x = mandelbrot.colToX(c);
+							y = mandelbrot.rowToY(r);
+							et = mandelbrot.calc.escapeTime.call(mandelbrot.calc, x, y, mandelbrot.maxIter, mandelbrot.radius, mandelbrot.normalised);
+							colour = makeColour(mandelbrot.cmap, et[0], et[1], et[2], mandelbrot.maxIter, mandelbrot.normalised);
+							if (mandelbrot.updateTimeout !== myUpdateTimeout) {
 								return; // Abort - no longer the current render thread
 							} 
-							setPixel(this.imageData, c, r, colour[0], colour[1], colour[2], colour[3]);
+							setPixel(mandelbrot.imageData, c, r, colour[0], colour[1], colour[2], colour[3]);
 						}
 					}
-					this.context.putImageData(this.imageData, 0, 0);
+					// TODO: Only need to blit one scanline
+					mandelbrot.context.putImageData(mandelbrot.imageData, 0, 0);
+					var percent = Math.floor((r * 100.0) / mandelbrot.imageData.height);
+					if (r < mandelbrot.canvas.height()) {
+						// TODO: Animate the progress bar smoothly.
+						// FIXME: This animates it, but all of the animation occurs after rendering is complete:
+						/*
+						$('.ui-progressbar-value').stop(true).animate({width: percent + '%'}, 1000, function() {
+							renderProgress.progressbar('option', 'value', percent);
+						});
+						*/
+						renderProgress.progressbar('option', 'value', percent);
+						mandelbrot.updateTimeout = setTimeout(function() {
+							updateFunc(mandelbrot, mandelbrot.updateTimeout);
+						});
+					} else {
+						mandelbrot.context.putImageData(mandelbrot.imageData, 0, 0);
+						renderProgress.progressbar('option', 'value', 100);
+					}
 				}
-				var that = this;
 				this.updateTimeout = setTimeout(function() {
-					updateFunc.call(that, that.updateTimeout);
+					updateFunc(that, that.updateTimeout);
 				});
-			},
-			onResize: function() {
-				this.imageData = this.context.getImageData(0, 0, this.canvas.width(), this.canvas.height());
-				this.update();
 			},
 			stop: function() {
 				clearTimeout(this.updateTimeout);
@@ -425,8 +441,10 @@ jQuery(function() {
 			 * maintain a 'shadow' copy of the canvas' current transform matrix,
 			 * over-ride every relevant canvas mutator so it concatenates the newly-applied transform
 			 * with the shadow matrix, then regurgitate the shadow matrix on demand.
-			 * No, that would not work.
+			 * 
+			 * NOTE: No, that would not work.
 			 * The Canvas' putImageData method does not use the transformation matrix.
+			 * You can however draw a canvas onto another canvas, possibly with transformation.
 			 */
 			getCentre: function() {
 				return [ this.centreRl, this.centreIm ];
@@ -469,8 +487,7 @@ jQuery(function() {
 			},
 			setColourMapName: function(newCmapName) {
 				if (!(newCmapName.toLowerCase() in colourMaps)) {
-					debug('Unknown colour map name "' + newCmapName + "'");
-					return;
+					throw 'Unknown colour map name "' + newCmapName + "'";
 				}
 				this.cmapName = newCmapName;
 				this.cmap = colourMaps[newCmapName.toLowerCase()];
@@ -480,8 +497,7 @@ jQuery(function() {
 			},
 			setFractalType: function(newCalcName) {
 				if (!(newCalcName.toLowerCase() in escapeTimeCalculators)) {
-					debug('Unknown escape time calculator name "' + newCalcName + "'");
-					return;
+					throw 'Unknown escape time calculator name "' + newCalcName + "'";
 				}
 				this.etCalcName = newCalcName;
 				this.calc = escapeTimeCalculators[newCalcName.toLowerCase()];
@@ -497,21 +513,6 @@ jQuery(function() {
 			}
 		});
 		// Create a Mandelbrot set and controls
-		canvas = $('#mandelbrot');
-		displayMouseRl = $('#mouserl');
-		displayMouseIm = $('#mouseim');
-		displayCentreRl = $('#centrerl');
-		displayCentreIm = $('#centreim');
-		displayScale = $('#scale');
-		displayMaxIter = $('#maxiter');
-		displayColourMap = $('#colourmap');
-		displayFractalType = $('#fractaltype');
-		displayNormalised = $('#normalised');
-		displayRadius = $('#radius');
-		displayEquation = $('#equation');
-		buttonZoomIn = $('#zoomin');
-		buttonZoomOut = $('#zoomout');
-		displayName = $('#name');
 		for (cmapName in colourMaps) {
 			// Generate an entry in the drop-down select list for this colour map
 			var option = $(document.createElement('option'));
@@ -542,10 +543,10 @@ jQuery(function() {
 			mandelbrot.update();
 		}
 		canvas.on('mousemove', function(event) {
-			displayMouseRl.val(mandelbrot.colToX(event.pageX - canvas.position().left));
-			displayMouseIm.val(mandelbrot.rowToY(event.pageY - canvas.position().top));
+			displayMouseRl.val(mandelbrot.colToX(event.pageX - canvas.offset().left + 0.5));
+			displayMouseIm.val(mandelbrot.rowToY(event.pageY - canvas.offset().top + 0.5));
 		}).on('click', function(event) {
-			mandelbrot.setCentre(mandelbrot.colToX(event.pageX - canvas.position().left), mandelbrot.rowToY(event.pageY - canvas.position().top));
+			mandelbrot.setCentre(mandelbrot.colToX(event.pageX - canvas.offset().left + 0.5), mandelbrot.rowToY(event.pageY - canvas.offset().top + 0.5));
 			mandelbrot.zoomInBy(2);
 			update();
 		});
@@ -581,6 +582,9 @@ jQuery(function() {
 			mandelbrot.zoomOutBy(2);
 			update();
 		});
+		buttonStop.on('click', function() {
+			mandelbrot.stop();
+		});
 		displayNormalised.on('change', function() {
 			mandelbrot.setNormalised($(this).prop('checked'));
 			update();
@@ -589,14 +593,21 @@ jQuery(function() {
 			mandelbrot.setRadius($(this).val());
 			update();
 		});
-		var resizable = $('.resizable');
 		resizable.resizable({ handles: "all", animate: false, ghost: true, autohide: false, aspectRatio: false });
 		resizable.on('resizestop', function(event, ui) {
 			canvas.css({ width: '100%', height: '100%' });
 			canvas[0].width = canvas.width();
 			canvas[0].height = canvas.height();
-			mandelbrot.onResize();
+			mandelbrot.update();
 		});
+		$('#preset1').on('click', function() {
+			// A Julia set within the Mandelbrot set.
+			mandelbrot.setCentre(-0.743643887037151, 0.131825904205330);
+			mandelbrot.setMaxIter(5000);
+			mandelbrot.setScale(9.094947017729283e-14);
+			update();
+		});
+		renderProgress.progressbar({value: 0, max: 100});
 		update();
 	})(jQuery);
 });
