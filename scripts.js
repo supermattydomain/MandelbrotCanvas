@@ -345,7 +345,7 @@ jQuery(function() {
 			option.text(ucFirstAll(etCalcName));
 			displayFractalType.append(option);
 		}
-		mandelbrot = new Mandelbrot(canvas, escapeTimeCalculators[displayFractalType.val().toLowerCase()], colourMaps[displayColourMap.val().toLowerCase()], renderProgress);
+		mandelbrot = new Mandelbrot.MandelbrotCanvas(canvas, escapeTimeCalculators[displayFractalType.val().toLowerCase()], colourMaps[displayColourMap.val().toLowerCase()]);
 		function updateControls() {
 			displayCentreRl.val(mandelbrot.getCentre()[0]);
 			displayCentreIm.val(mandelbrot.getCentre()[1]);
@@ -426,6 +426,9 @@ jQuery(function() {
 			mandelbrot.setMaxIter(5000);
 			mandelbrot.setScale(9.094947017729283e-14);
 			update();
+		});
+		mandelbrot.canvas.on(Mandelbrot.eventNames.renderProgress, function(event, percentDone) {
+			renderProgress.progressbar('option', 'value', percentDone);
 		});
 		renderProgress.progressbar({value: 0, max: 100});
 		update();

@@ -1,5 +1,9 @@
+if (typeof(Mandelbrot) === 'undefined') {
+	Mandelbrot = {};
+}
+
 /**
- * A panel displaying the Mandelbrot set.
+ * A canvas displaying the Mandelbrot set.
  * 
  * @param canvas
  *            A jQuery wrapper around the HTML5 canvas element to draw into
@@ -8,9 +12,8 @@
  * @param etCalcName
  *            Name of the escape-time calculator to use
  */
-function Mandelbrot(canvas, etCalc, cmap, renderProgress) {
+Mandelbrot.MandelbrotCanvas = function(canvas, etCalc, cmap) {
 	this.canvas = canvas;
-	this.renderProgress = renderProgress;
 	this.context = this.canvas[0].getContext("2d");
 	this.imageData = this.context.getImageData(0, 0, this.canvas.width(),
 			this.canvas.height());
@@ -27,8 +30,9 @@ function Mandelbrot(canvas, etCalc, cmap, renderProgress) {
 	this.radius = 3;
 	this.setFractalType(etCalc);
 	this.setColourMap(cmap);
-}
-$.extend(Mandelbrot.prototype, {
+};
+
+$.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 	colToX : function(c) {
 		return (c + 0.5 - this.imageData.width / 2)
 				* this.scale + this.centreRl;
@@ -80,7 +84,7 @@ $.extend(Mandelbrot.prototype, {
 			)
 		);
 		this.stop();
-		this.renderProgress.progressbar('option', 'value', 0);
+		this.canvas.trigger(Mandelbrot.eventNames.renderProgress, 0);
 		function updateFunc(mandelbrot, myUpdateTimeout) {
 			var rowEnd = Math.min(r + bandHeight, mandelbrot.canvas.height()), c, x, y, et, colour, percent;
 			mandelbrot.imageData = mandelbrot.context.getImageData(
@@ -119,18 +123,17 @@ $.extend(Mandelbrot.prototype, {
 				// FIXME: This animates it, but all of the
 				// animation occurs after rendering is complete:
 				/*
-				 * $('.ui-progressbar-value').stop(true).animate({width:
-				 * percent + '%'}, 1000, function() {
-				 * this.renderProgress.progressbar('option', 'value',
-				 * percent); });
+				 * $('.ui-progressbar-value').stop(true).animate({width: percent + '%'}, 1000, function() {
+				 *     mandelbrot.canvas.trigger(Mandelbrot.eventNames.renderProgress, percent);
+				 * });
 				 */
-				mandelbrot.renderProgress.progressbar('option', 'value', percent);
+				mandelbrot.canvas.trigger(Mandelbrot.eventNames.renderProgress, percent);
 				mandelbrot.updateTimeout = setTimeout(function() {
 					updateFunc(mandelbrot, mandelbrot.updateTimeout);
 				});
 			} else {
 				mandelbrot.context.putImageData(mandelbrot.imageData, 0, 0);
-				mandelbrot.renderProgress.progressbar('option', 'value', 100);
+				mandelbrot.canvas.trigger(Mandelbrot.eventNames.renderProgress, 100);
 			}
 		}
 		this.updateTimeout = setTimeout(function() {
@@ -213,5 +216,11 @@ $.extend(Mandelbrot.prototype, {
 	},
 	setNormalised : function(newNormalised) {
 		this.normalised = newNormalised;
+	}
+});
+
+$.extend(Mandelbrot, {
+	eventNames: {
+		renderProgress: 'Mandelbrot.renderProgress'
 	}
 });
