@@ -1,5 +1,9 @@
 @CHARSET "UTF-8";
 
+button {
+	margin: 5px;
+}
+
 .resizable {
 	float: left; /* trigger shrinkwrap */
 	padding: 10px;

@@ -32,15 +32,14 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 	 * the smoothness of the colouring.
 	 */
 	radius : 3,
+	// TODO: Normalise scale so that at scale===1, whole set is in view.
 	colToX : function(c) {
-		return (c + 0.5 - this.imageData.width / 2)
-				* this.scale + this.centreRl;
+		return (c + 0.5 - this.imageData.width / 2) * this.scale + this.centreRl;
 	},
 	rowToY : function(r) {
 		// Inversion due to the canvas' inverted-Y co-ordinate system.
 		// The set is symmetrical, but the co-ordinates are shown to the user.
-		return -(r + 0.5 - this.imageData.height / 2)
-				* this.scale + this.centreIm;
+		return -(r + 0.5 - this.imageData.height / 2) * this.scale + this.centreIm;
 	},
 	makeColour: function(cmap, n, lastVal, power, maxIter, normalised) {
 		// points in set are black
