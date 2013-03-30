@@ -16,33 +16,36 @@ jQuery(function() {
 			resizable = $('.resizable'),
 			renderProgress = $('#renderProgress');
 		// Create a Mandelbrot set and controls
-		for (cmapName in Mandelbrot.colourMaps) {
+		$(Mandelbrot.colourMaps).each(function(i, cmap) {
 			// Generate an entry in the drop-down select list for this colour map
-			var option = $(document.createElement('option'));
-			option.text(ucFirstAll(cmapName));
+			var option = $('<option>');
+			option.val(cmap.name).text(ucFirstAll(cmap.name)).data('modelObject', cmap);
+			if (!i) {
+				option.attr('selected', 'selected');
+			}
 			displayColourMap.append(option);
-		}
-		for (etCalcName in Mandelbrot.escapeTimeCalculators) {
+		});
+		$(Mandelbrot.escapeTimeCalculators).each(function(i, calc) {
 			// Generate an entry in the drop-down select list for this fractal type
-			var option = $(document.createElement('option'));
-			option.text(ucFirstAll(etCalcName));
+			var option = $('<option>');
+			option.val(calc.name).text(ucFirstAll(calc.name)).data('modelObject', calc);
+			if (!i) {
+				option.attr('selected', 'selected');
+			}
 			displayFractalType.append(option);
-		}
-		mandelbrot = new Mandelbrot.MandelbrotCanvas(canvas, Mandelbrot.escapeTimeCalculators[displayFractalType.val().toLowerCase()], Mandelbrot.colourMaps[displayColourMap.val().toLowerCase()]);
-		function updateControls() {
+		});
+		mandelbrot = new Mandelbrot.MandelbrotCanvas(canvas, Mandelbrot.escapeTimeCalculators[0], Mandelbrot.colourMaps[0]);
+		function update() {
 			displayCentreRl.val(mandelbrot.getCentre()[0]);
 			displayCentreIm.val(mandelbrot.getCentre()[1]);
 			displayScale.val(mandelbrot.getScale());
-			displayColourMap.val(ucFirstAll(mandelbrot.getColourMapName()));
+			displayColourMap.val(mandelbrot.getColourMap().name);
 			displayMaxIter.val(mandelbrot.getMaxIter());
-			displayFractalType.val(ucFirstAll(mandelbrot.getFractalName()));
+			displayFractalType.val(mandelbrot.getFractalType().name);
 			displayNormalised.prop('checked', mandelbrot.getNormalised());
 			displayRadius.val(mandelbrot.getRadius());
-			displayEquation.html(mandelbrot.getFractalEquation());
-			displayName.text(mandelbrot.getFractalName());
-		}
-		function update() {
-			updateControls();
+			displayEquation.html(mandelbrot.getFractalType().equation);
+			displayName.text(displayFractalType.find(':selected').text());
 			mandelbrot.update();
 		}
 		canvas.on('mousemove', function(event) {
@@ -70,11 +73,11 @@ jQuery(function() {
 			update();
 		});
 		displayColourMap.on('change', function() {
-			mandelbrot.setColourMap(Mandelbrot.colourMaps[$(this).val().toLowerCase()]);
+			mandelbrot.setColourMap($(this).find(':selected').data('modelObject'));
 			update();
 		});
 		displayFractalType.on('change', function() {
-			mandelbrot.setFractalType(Mandelbrot.escapeTimeCalculators[$(this).val().toLowerCase()]);
+			mandelbrot.setFractalType($(this).find(':selected').data('modelObject'));
 			update();
 		});
 		buttonZoomIn.on('click', function() {

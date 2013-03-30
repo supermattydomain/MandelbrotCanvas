@@ -15,24 +15,23 @@ if (typeof(Mandelbrot) === 'undefined') {
 Mandelbrot.MandelbrotCanvas = function(canvas, etCalc, cmap) {
 	this.canvas = canvas;
 	this.context = this.canvas[0].getContext("2d");
-	this.imageData = this.context.getImageData(0, 0, this.canvas.width(),
-			this.canvas.height());
-	this.centreRl = 0;
-	this.centreIm = 0;
+	this.imageData = this.context.getImageData(0, 0, this.canvas.width(), this.canvas.height());
 	this.scale = 5 / Math.min(this.imageData.width, this.imageData.height);
-	this.maxIter = 100;
-	this.normalised = true;
-	/**
-	 * A radius of 2 is mathematically sufficient (as any point whose modulus
-	 * exceeds two escapes to infinity). However, setting radius > 2 improves
-	 * the smoothness of the colouring.
-	 */
-	this.radius = 3;
 	this.setFractalType(etCalc);
 	this.setColourMap(cmap);
 };
 
 $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
+	centreRl : 0,
+	centreIm : 0,
+	maxIter : 100,
+	normalised : true,
+	/**
+	 * A radius of 2 is mathematically sufficient (as any point whose modulus
+	 * exceeds two escapes to infinity). However, setting radius > 2 improves
+	 * the smoothness of the colouring.
+	 */
+	radius : 3,
 	colToX : function(c) {
 		return (c + 0.5 - this.imageData.width / 2)
 				* this.scale + this.centreRl;
@@ -196,20 +195,17 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 	setRadius : function(newRadius) {
 		this.radius = newRadius;
 	},
-	getColourMapName : function() {
-		return this.cmap.name;
+	getColourMap : function() {
+		return this.cmap;
 	},
 	setColourMap : function(newCmap) {
 		this.cmap = newCmap;
 	},
-	getFractalName : function() {
-		return this.calc.name;
+	getFractalType : function() {
+		return this.calc;
 	},
 	setFractalType : function(newCalc) {
 		this.calc = newCalc;
-	},
-	getFractalEquation : function() {
-		return this.calc.equation;
 	},
 	getNormalised : function() {
 		return this.normalised;
@@ -223,11 +219,11 @@ $.extend(Mandelbrot, {
 	/**
 	 * Various ways of mapping escape-time values to a repeating range of colours.
 	 */
-	colourMaps: {
+	colourMaps: [
 	    /**
 	     * A ramp through the rainbow in hue.
 	     */
-	    'rainbow': {
+	    {
 	    	name: 'rainbow',
 	    	numGradations: 50, // Gradations per colour map
 	    	colourMap: [],
@@ -242,8 +238,8 @@ $.extend(Mandelbrot, {
 	    /**
 	     * A 'smooth' ramp from red to green to blue and back to red.
 	     */
-	   	'smooth': {
-	   		name: 'smooth',
+	   	{
+	   		name: 'RGB',
 	    	numGradations: 20, // Gradations per colour transition; three transitions per colour map
 	    	colourMap: [],
 	    	genColourMap: function() {
@@ -274,7 +270,7 @@ $.extend(Mandelbrot, {
 	    		}
 	    	}
 	    }
-	},
+	],
 	/**
 	 * Calculate number of iterations of Mandelbrot function (ie terms in
 	 * sequence) before given point z = (x(1) + y(1)i) escapes circle of given
@@ -283,7 +279,7 @@ $.extend(Mandelbrot, {
 	 * reach n iterations, give up and return n.
 	 * TODO: The below calculations might be more efficient in polar co-ords.
 	 */
-	escapeTimeCalculators: {
+	escapeTimeCalculators: [
 	    /**
 	     * Classical Mandelbrot (quadratic).
 	     * First term of orbit series = z(0) = x(0) + y(0)i ;
@@ -294,7 +290,7 @@ $.extend(Mandelbrot, {
 	     * y(n+1) = 2x(n)y(n) + y(0)
 	     * TODO: detect underflow and use bignum library for greater precision?
 	     */
-		'mandelbrot': {
+		{
 			name: 'mandelbrot',
 			equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>2</sup> + z<sub>0</sub>',
 	    	escapeTime: function(x, y, maxIter, radius, normalised) {
@@ -334,7 +330,7 @@ $.extend(Mandelbrot, {
 	     * and
 	     * I(n+1) = I(n)((3R(n)^2 - I(n)^2) + I(0))
 	     */
-	    'mandelbrot cubic': {
+	    {
 	    	name: 'mandelbrot cubic',
 	    	equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>3</sup> + z<sub>0</sub>',
 	    	escapeTime: function(x, y, maxIter, radius, normalised) {
@@ -368,7 +364,7 @@ $.extend(Mandelbrot, {
 	     * R(n+1)   = a^4 + b^4 - 6a^2b^2 + R(0)
 	     * I(n+1)   = 4a^3b - 4ab^3 + I(0)
 	     */
-	    'mandelbrot quartic': {
+	    {
 	    	name: 'mandelbrot quartic',
 	    	equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>4</sup> + z<sub>0</sub>',
 	    	escapeTime: function(x, y, maxIter, radius, normalised) {
@@ -397,7 +393,7 @@ $.extend(Mandelbrot, {
 	    /**
 	     * Mandelbrot quintic: z(n+1) = z(n)^5 + z(0)
 	     */
-	    'mandelbrot quintic': {
+	    {
 	    	name: 'mandelbrot quintic',
 	    	equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>5</sup> + z<sub>0</sub>',
 	    	escapeTime: function(x, y, maxIter, radius, normalised) {
@@ -425,7 +421,7 @@ $.extend(Mandelbrot, {
 		/**
 		 * Mandelbrot conjugate aka Mandelbar aka Tricorn: z(n+1) = con(z)^2 + z(0)
 		 */
-	    'mandelbrot conjugate': {
+	    {
 	    	name: 'mandelbrot conjugate',
 	    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>2</sup> + z<sub>0</sub>',
 	    	escapeTime: function(x, y, maxIter, radius, normalised) {
@@ -453,7 +449,7 @@ $.extend(Mandelbrot, {
 		/**
 		 * Mandelbrot conjugate cubic: z(n+1) = con(z)^3 + z(0)
 		 */
-	    'mandelbrot conjugate cubic': {
+	    {
 	    	name: 'mandelbrot conjugate cubic',
 	    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>3</sup> + z<sub>0</sub>',
 	    	escapeTime: function(x, y, maxIter, radius, normalised) {
@@ -481,7 +477,7 @@ $.extend(Mandelbrot, {
 		/**
 		 * Mandelbrot conjugate quartic: z(n+1) = con(z)^4 + z(0)
 		 */
-	    'mandelbrot conjugate quartic': {
+	    {
 	    	name: 'mandelbrot conjugate quartic',
 	    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>4</sup> + z<sub>0</sub>',
 	    	escapeTime: function(x, y, maxIter, radius, normalised) {
@@ -511,7 +507,7 @@ $.extend(Mandelbrot, {
 		/**
 		 * Mandelbrot conjugate quintic: z(n+1) = con(z)^5 + z(0)
 		 */
-	    'mandelbrot conjugate quintic': {
+	    {
 	    	name: 'mandelbrot conjugate quintic',
 	    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>5</sup> + z<sub>0</sub>',
 	    	escapeTime: function(x, y, maxIter, radius, normalised) {
@@ -536,7 +532,7 @@ $.extend(Mandelbrot, {
 	    		return [i, 0, 5];
 	    	}
 		}
-	},
+	],
 	eventNames: {
 		renderProgress: 'Mandelbrot.renderProgress'
 	}
