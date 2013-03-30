@@ -110,7 +110,7 @@ jQuery(function() {
 			// A Julia set within the Mandelbrot set.
 			mandelbrot.setCentre(-0.743643887037151, 0.131825904205330);
 			mandelbrot.setMaxIter(5000);
-			mandelbrot.setScale(9.094947017729283e-14);
+			mandelbrot.setScale(1.318989403545856e-13);
 			update();
 		});
 		mandelbrot.canvas.on(Mandelbrot.eventNames.renderProgress, function(event, percentDone) {

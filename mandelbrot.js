@@ -42,7 +42,7 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 		return -(r + 0.5 - this.imageData.height / 2) * this.scale + this.centreIm;
 	},
 	makeColour: function(cmap, n, lastVal, power, maxIter, normalised) {
-		// points in set are black
+		// Points in the set are black
 		if (n === maxIter) {
 			return [0, 0, 0, 255];
 		}
@@ -50,21 +50,23 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 		if (!cmap.colourMap.length) {
 			cmap.genColourMap();
 		}
-		// outside set, iteration count modulo entire colourmap size selects colour
-		if (!normalised) {
-			// Return an entry directly from the colour map
-			return cmap.colourMap[n % cmap.colourMap.length];
+		// Outside the set, iteration count modulo entire colourmap size selects colour
+		if (normalised) {
+			// Generate a fractional normalised iteration count
+			n = Math.max(0, n + 1 - Math.log(Math.log(lastVal)) / Math.log(power));
 		}
-		/**
-		 * Generate a fractional normalised iteration count, then use it to interpolate
-		 * between two neighbouring colour map entries.
-		 */
-		n = Math.max(0, n + 1 - Math.log(Math.log(lastVal)) / Math.log(power));
-		return interpolateColour(
-			cmap.colourMap[Math.floor(n) % cmap.colourMap.length],
-			cmap.colourMap[(Math.floor(n) + 1) % cmap.colourMap.length],
-			n - Math.floor(n)
-		);
+		// Increases in iteration count cause only logarithmic changes in colourmap entry
+		n = Math.max(0, logBase(1.3, n));
+		if (normalised) {
+			// Use fractional iteration count to interpolate between colours
+			return interpolateColour(
+				cmap.colourMap[Math.floor(n) % cmap.colourMap.length],
+				cmap.colourMap[(Math.floor(n) + 1) % cmap.colourMap.length],
+				n - Math.floor(n)
+			);
+		}
+		// Return an entry directly from the colour map
+		return cmap.colourMap[Math.floor(n) % cmap.colourMap.length];
 	},
 	/**
 	 * The below performs the calculations and redraws in
