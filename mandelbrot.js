@@ -8,9 +8,8 @@
  * @param etCalcName
  *            Name of the escape-time calculator to use
  */
-function Mandelbrot(canvas, escapeTimeCalculators, etCalcName, colourMaps, cmapName, renderProgress) {
+function Mandelbrot(canvas, etCalc, colourMaps, cmapName, renderProgress) {
 	this.canvas = canvas;
-	this.escapeTimeCalculators = escapeTimeCalculators;
 	this.colourMaps = colourMaps;
 	this.renderProgress = renderProgress;
 	this.context = this.canvas[0].getContext("2d");
@@ -27,7 +26,7 @@ function Mandelbrot(canvas, escapeTimeCalculators, etCalcName, colourMaps, cmapN
 	 * the smoothness of the colouring.
 	 */
 	this.radius = 3;
-	this.setFractalType(etCalcName);
+	this.setFractalType(etCalc);
 	this.setColourMapName(cmapName);
 }
 $.extend(Mandelbrot.prototype, {
@@ -205,15 +204,11 @@ $.extend(Mandelbrot.prototype, {
 		this.cmapName = newCmapName;
 		this.cmap = this.colourMaps[newCmapName.toLowerCase()];
 	},
-	getFractalType : function() {
-		return this.etCalcName;
+	getFractalName : function() {
+		return this.calc.name;
 	},
-	setFractalType : function(newCalcName) {
-		if (!(newCalcName.toLowerCase() in this.escapeTimeCalculators)) {
-			throw 'Unknown escape time calculator name "' + newCalcName + "'";
-		}
-		this.etCalcName = newCalcName;
-		this.calc = this.escapeTimeCalculators[newCalcName.toLowerCase()];
+	setFractalType : function(newCalc) {
+		this.calc = newCalc;
 	},
 	getFractalEquation : function() {
 		return this.calc.equation;

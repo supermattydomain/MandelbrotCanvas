@@ -88,6 +88,7 @@ jQuery(function() {
 		     * TODO: detect underflow and use bignum library for greater precision?
 		     */
 			'mandelbrot': {
+				name: 'mandelbrot',
 				equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>2</sup> + z<sub>0</sub>',
 		    	escapeTime: function(x, y, maxIter, radius, normalised) {
 		    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius, q;
@@ -127,6 +128,7 @@ jQuery(function() {
 		     * I(n+1) = I(n)((3R(n)^2 - I(n)^2) + I(0))
 		     */
 		    'mandelbrot cubic': {
+		    	name: 'mandelbrot cubic',
 		    	equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>3</sup> + z<sub>0</sub>',
 		    	escapeTime: function(x, y, maxIter, radius, normalised) {
 		    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius, newrl;
@@ -160,6 +162,7 @@ jQuery(function() {
 		     * I(n+1)   = 4a^3b - 4ab^3 + I(0)
 		     */
 		    'mandelbrot quartic': {
+		    	name: 'mandelbrot quartic',
 		    	equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>4</sup> + z<sub>0</sub>',
 		    	escapeTime: function(x, y, maxIter, radius, normalised) {
 		    		var rl = x, im = y, sqrl = 0, sqim = 0, newrl, i = 0, sqr = radius * radius;
@@ -188,6 +191,7 @@ jQuery(function() {
 		     * Mandelbrot quintic: z(n+1) = z(n)^5 + z(0)
 		     */
 		    'mandelbrot quintic': {
+		    	name: 'mandelbrot quintic',
 		    	equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>5</sup> + z<sub>0</sub>',
 		    	escapeTime: function(x, y, maxIter, radius, normalised) {
 		    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
@@ -215,6 +219,7 @@ jQuery(function() {
 			 * Mandelbrot conjugate aka Mandelbar aka Tricorn: z(n+1) = con(z)^2 + z(0)
 			 */
 		    'mandelbrot conjugate': {
+		    	name: 'mandelbrot conjugate',
 		    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>2</sup> + z<sub>0</sub>',
 		    	escapeTime: function(x, y, maxIter, radius, normalised) {
 		    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
@@ -242,6 +247,7 @@ jQuery(function() {
 			 * Mandelbrot conjugate cubic: z(n+1) = con(z)^3 + z(0)
 			 */
 		    'mandelbrot conjugate cubic': {
+		    	name: 'mandelbrot conjugate cubic',
 		    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>3</sup> + z<sub>0</sub>',
 		    	escapeTime: function(x, y, maxIter, radius, normalised) {
 		    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
@@ -269,6 +275,7 @@ jQuery(function() {
 			 * Mandelbrot conjugate quartic: z(n+1) = con(z)^4 + z(0)
 			 */
 		    'mandelbrot conjugate quartic': {
+		    	name: 'mandelbrot conjugate quartic',
 		    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>4</sup> + z<sub>0</sub>',
 		    	escapeTime: function(x, y, maxIter, radius, normalised) {
 		    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
@@ -298,6 +305,7 @@ jQuery(function() {
 			 * Mandelbrot conjugate quintic: z(n+1) = con(z)^5 + z(0)
 			 */
 		    'mandelbrot conjugate quintic': {
+		    	name: 'mandelbrot conjugate quintic',
 		    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>5</sup> + z<sub>0</sub>',
 		    	escapeTime: function(x, y, maxIter, radius, normalised) {
 		    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
@@ -335,18 +343,18 @@ jQuery(function() {
 			option.text(ucFirstAll(etCalcName));
 			displayFractalType.append(option);
 		}
-		mandelbrot = new Mandelbrot(canvas, escapeTimeCalculators, displayFractalType.val(), colourMaps, displayColourMap.val(), renderProgress);
+		mandelbrot = new Mandelbrot(canvas, escapeTimeCalculators[displayFractalType.val().toLowerCase()], colourMaps, displayColourMap.val(), renderProgress);
 		function updateControls() {
 			displayCentreRl.val(mandelbrot.getCentre()[0]);
 			displayCentreIm.val(mandelbrot.getCentre()[1]);
 			displayScale.val(mandelbrot.getScale());
 			displayColourMap.val(mandelbrot.getColourMapName());
 			displayMaxIter.val(mandelbrot.getMaxIter());
-			displayFractalType.val(mandelbrot.getFractalType());
+			displayFractalType.val(ucFirstAll(mandelbrot.getFractalName()));
 			displayNormalised.prop('checked', mandelbrot.getNormalised());
 			displayRadius.val(mandelbrot.getRadius());
 			displayEquation.html(mandelbrot.getFractalEquation());
-			displayName.text(mandelbrot.getFractalType());
+			displayName.text(mandelbrot.getFractalName());
 		}
 		function update() {
 			updateControls();
@@ -381,7 +389,7 @@ jQuery(function() {
 			update();
 		});
 		displayFractalType.on('change', function() {
-			mandelbrot.setFractalType($(this).val());
+			mandelbrot.setFractalType(escapeTimeCalculators[$(this).val().toLowerCase()]);
 			update();
 		});
 		buttonZoomIn.on('click', function() {
