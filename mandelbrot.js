@@ -13,10 +13,10 @@ if (typeof(Mandelbrot) === 'undefined') {
  *            Name of the escape-time calculator to use
  */
 Mandelbrot.MandelbrotCanvas = function(canvas, etCalc, cmap) {
-	this.canvas = canvas;
-	this.context = this.canvas[0].getContext("2d");
-	this.imageData = this.context.getImageData(0, 0, this.canvas.width(), this.canvas.height());
-	this.scale = 5 / Math.min(this.imageData.width, this.imageData.height);
+	this.$canvas = canvas;
+	this.canvas = this.$canvas[0];
+	this.context = this.canvas.getContext("2d");
+	this.scale = 5 / Math.min(this.canvas.width, this.canvas.height);
 	this.setFractalType(etCalc);
 	this.setColourMap(cmap);
 };
@@ -25,21 +25,31 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 	centreRl : 0,
 	centreIm : 0,
 	maxIter : 100,
+	julia: false,
 	normalised : true,
 	/**
 	 * A radius of 2 is mathematically sufficient (as any point whose modulus
 	 * exceeds two escapes to infinity). However, setting radius > 2 improves
 	 * the smoothness of the colouring.
 	 */
-	radius : 3,
+	radius : 4,
 	// TODO: Normalise scale so that at scale===1, whole set is in view.
+	toggleJulia: function() {
+		this.julia = !this.julia;
+	},
+	isJulia: function() {
+		return this.julia;
+	},
+	setJulia: function(newJulia) {
+		this.julia = newJulia;
+	},
 	colToX : function(c) {
-		return (c + 0.5 - this.imageData.width / 2) * this.scale + this.centreRl;
+		return (c + 0.5 - this.canvas.width / 2) * this.scale + this.centreRl;
 	},
 	rowToY : function(r) {
 		// Inversion due to the canvas' inverted-Y co-ordinate system.
 		// The set is symmetrical, but the co-ordinates are shown to the user.
-		return -(r + 0.5 - this.imageData.height / 2) * this.scale + this.centreIm;
+		return -(r + 0.5 - this.canvas.height / 2) * this.scale + this.centreIm;
 	},
 	makeColour: function(cmap, n, lastVal, power, maxIter, normalised) {
 		// Points in the set are black
@@ -75,27 +85,42 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 	 * TODO: Use web worker if available
 	 */
 	update : function() {
-		var bandHeightMin = 10, bandHeightMax = 20;
-		var r = 0, that = this, bandHeight = Math.max(
-			bandHeightMin,
-			Math.min(
-				bandHeightMax,
-				Math.floor(this.imageData.height / 10)
-			)
-		);
+		var bandHeightMin = 10, bandHeightMax = 20,
+			r = 0, that = this,
+			isJulia = this.julia,
+			width = this.canvas.width,
+			height = this.canvas.height,
+			bandHeight = Math.max(
+				bandHeightMin,
+				Math.min(
+					bandHeightMax,
+					Math.floor(height / 10)
+				)
+			),
+			imageData = this.context.getImageData(0, 0, width, height);
 		this.stop();
-		this.canvas.trigger(Mandelbrot.eventNames.renderProgress, 0);
+		this.$canvas.trigger(Mandelbrot.eventNames.renderProgress, 0);
 		function updateFunc(mandelbrot, myUpdateTimeout) {
-			var rowEnd = Math.min(r + bandHeight, mandelbrot.canvas.height()), c, x, y, et, colour, percent;
-			mandelbrot.imageData = mandelbrot.context.getImageData(
-				0, 0, mandelbrot.canvas.width(), mandelbrot.canvas.height()
-			);
+			var rowEnd = Math.min(r + bandHeight, height), c,
+				x0, y0,
+				xinc = undefined, yinc = undefined, // Silence Eclipse warnings
+				et, colour, percent;
+			if (isJulia) {
+				xinc = mandelbrot.colToX(width  / 2 + 0.5);
+				yinc = mandelbrot.rowToY(height / 2 + 0.5);
+			}
 			for (; r < rowEnd; r++) {
-				for (c = 0; c < mandelbrot.imageData.width; c++) {
-					x = mandelbrot.colToX(c);
-					y = mandelbrot.rowToY(r);
+				for (c = 0; c < width; c++) {
+					x0 = mandelbrot.colToX(c);
+					y0 = mandelbrot.rowToY(r);
+					if (!isJulia) {
+						xinc = x0;
+						yinc = y0;
+					}
 					et = mandelbrot.calc.escapeTime.call(
-						mandelbrot.calc, x, y,
+						mandelbrot.calc,
+						x0, y0,
+						xinc, yinc,
 						mandelbrot.maxIter,
 						mandelbrot.radius,
 						mandelbrot.normalised
@@ -110,30 +135,30 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 						return; // Abort - no longer the current render thread
 					}
 					setPixel(
-						mandelbrot.imageData, c, r,
+						imageData, c, r,
 						colour[0], colour[1], colour[2], colour[3]
 					);
 				}
 			}
 			// TODO: Only need to blit one scanline
-			mandelbrot.context.putImageData(mandelbrot.imageData, 0, 0);
-			percent = Math.floor((r * 100.0) / mandelbrot.imageData.height);
-			if (r < mandelbrot.canvas.height()) {
+			mandelbrot.context.putImageData(imageData, 0, 0);
+			if (r < height) {
+				percent = Math.floor((r * 100.0) / height);
 				// TODO: Animate the progress bar smoothly.
 				// FIXME: This animates it, but all of the
 				// animation occurs after rendering is complete:
 				/*
 				 * $('.ui-progressbar-value').stop(true).animate({width: percent + '%'}, 1000, function() {
-				 *     mandelbrot.canvas.trigger(Mandelbrot.eventNames.renderProgress, percent);
+				 *     mandelbrot.$canvas.trigger(Mandelbrot.eventNames.renderProgress, percent);
 				 * });
 				 */
-				mandelbrot.canvas.trigger(Mandelbrot.eventNames.renderProgress, percent);
+				mandelbrot.$canvas.trigger(Mandelbrot.eventNames.renderProgress, percent);
 				mandelbrot.updateTimeout = setTimeout(function() {
 					updateFunc(mandelbrot, mandelbrot.updateTimeout);
 				});
 			} else {
-				mandelbrot.context.putImageData(mandelbrot.imageData, 0, 0);
-				mandelbrot.canvas.trigger(Mandelbrot.eventNames.renderProgress, 100);
+				mandelbrot.context.putImageData(imageData, 0, 0);
+				mandelbrot.$canvas.trigger(Mandelbrot.eventNames.renderProgress, 100);
 			}
 		}
 		this.updateTimeout = setTimeout(function() {
@@ -226,7 +251,7 @@ $.extend(Mandelbrot, {
 	     */
 	    {
 	    	name: 'rainbow',
-	    	numGradations: 50, // Gradations per colour map
+	    	numGradations: 10, // Gradations per colour map
 	    	colourMap: [],
 	    	genColourMap: function() {
 	    		var h = 0, s = 0.6, v = 0.8, i;
@@ -241,7 +266,7 @@ $.extend(Mandelbrot, {
 	     */
 	   	{
 	   		name: 'RGB',
-	    	numGradations: 20, // Gradations per colour transition; three transitions per colour map
+	    	numGradations: 5, // Gradations per colour transition; three transitions per colour map
 	    	colourMap: [],
 	    	genColourMap: function() {
 	    		var i, n, max = 128;
@@ -294,7 +319,7 @@ $.extend(Mandelbrot, {
 		{
 			name: 'mandelbrot',
 			equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>2</sup> + z<sub>0</sub>',
-	    	escapeTime: function(x, y, maxIter, radius, normalised) {
+	    	escapeTime: function(x, y, crl, cim, maxIter, radius, normalised) {
 	    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius, q;
 	    		// Optimisation: is this point inside the main point-attractor cardioid?
 	    		q = (x - 0.25) * (x - 0.25) + y * y;
@@ -312,8 +337,8 @@ $.extend(Mandelbrot, {
 	    			if (sqrl + sqim > sqr) {
 	    				break;
 	    			}
-	    			im = (2 * rl * im) + y;
-	    			rl = sqrl - sqim + x;
+	    			im = (2 * rl * im) + cim;
+	    			rl = sqrl - sqim + crl;
 	    			if (++i >= maxIter) {
 	    				return [maxIter, 0, 2];
 	    			}
@@ -334,7 +359,7 @@ $.extend(Mandelbrot, {
 	    {
 	    	name: 'mandelbrot cubic',
 	    	equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>3</sup> + z<sub>0</sub>',
-	    	escapeTime: function(x, y, maxIter, radius, normalised) {
+	    	escapeTime: function(x, y, crl, cim, maxIter, radius, normalised) {
 	    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius, newrl;
 
 	    		for (;;) {
@@ -343,8 +368,8 @@ $.extend(Mandelbrot, {
 	    			if (sqrl + sqim > sqr) {
 	    				break;
 	    			}
-	    			newrl = rl * (sqrl - 3 * sqim) + x;
-	    			im = im * (3 * sqrl - sqim) + y;
+	    			newrl = rl * (sqrl - 3 * sqim) + crl;
+	    			im = im * (3 * sqrl - sqim) + cim;
 	    			rl = newrl;
 	    			if (++i >= maxIter) {
 	    				return [maxIter, 0, 3];
@@ -368,7 +393,7 @@ $.extend(Mandelbrot, {
 	    {
 	    	name: 'mandelbrot quartic',
 	    	equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>4</sup> + z<sub>0</sub>',
-	    	escapeTime: function(x, y, maxIter, radius, normalised) {
+	    	escapeTime: function(x, y, crl, cim, maxIter, radius, normalised) {
 	    		var rl = x, im = y, sqrl = 0, sqim = 0, newrl, i = 0, sqr = radius * radius;
 
 	    		for (;;) {
@@ -377,8 +402,8 @@ $.extend(Mandelbrot, {
 	    			if (sqrl + sqim > sqr) {
 	    				break;
 	    			}
-	    			newrl = sqrl * sqrl + sqim * sqim - 6 * sqrl * sqim + x;
-	    			im = 4 * sqrl * rl * im - 4 * rl * sqim * im + y;
+	    			newrl = sqrl * sqrl + sqim * sqim - 6 * sqrl * sqim + crl;
+	    			im = 4 * sqrl * rl * im - 4 * rl * sqim * im + cim;
 	    			rl = newrl;
 	    			if (++i >= maxIter) {
 	    				return [maxIter, 0, 4];
@@ -397,7 +422,7 @@ $.extend(Mandelbrot, {
 	    {
 	    	name: 'mandelbrot quintic',
 	    	equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>5</sup> + z<sub>0</sub>',
-	    	escapeTime: function(x, y, maxIter, radius, normalised) {
+	    	escapeTime: function(x, y, crl, cim, maxIter, radius, normalised) {
 	    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
 
 	    		for (;;) {
@@ -406,8 +431,8 @@ $.extend(Mandelbrot, {
 	    			if ((sqrl + sqim) > sqr) {
 	    				break;
 	    			}
-	    			rl = (rl * ((sqrl * (sqrl - sqim)) - (9 * sqrl * sqim) + (5 * sqim * sqim))) + x;
-	    			im = (im * ((sqim * (sqim - (10 * sqrl))) + (5 * sqrl * sqrl))) + y;
+	    			rl = (rl * ((sqrl * (sqrl - sqim)) - (9 * sqrl * sqim) + (5 * sqim * sqim))) + crl;
+	    			im = (im * ((sqim * (sqim - (10 * sqrl))) + (5 * sqrl * sqrl))) + cim;
 	    			if (++i >= maxIter) {
 	    				return [maxIter, 0, 5];
 	    			}
@@ -425,7 +450,7 @@ $.extend(Mandelbrot, {
 	    {
 	    	name: 'mandelbrot conjugate',
 	    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>2</sup> + z<sub>0</sub>',
-	    	escapeTime: function(x, y, maxIter, radius, normalised) {
+	    	escapeTime: function(x, y, crl, cim, maxIter, radius, normalised) {
 	    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
 
 	    		for (;;) {
@@ -434,8 +459,8 @@ $.extend(Mandelbrot, {
 	    			if (sqrl + sqim > sqr) {
 	    				break;
 	    			}
-	    			im = (-2 * rl * im) + y;
-	    			rl = sqrl - sqim + x;
+	    			im = (-2 * rl * im) + cim;
+	    			rl = sqrl - sqim + crl;
 	    			if (++i >= maxIter) {
 	    				return [maxIter, 0, 2];
 	    			}
@@ -453,7 +478,7 @@ $.extend(Mandelbrot, {
 	    {
 	    	name: 'mandelbrot conjugate cubic',
 	    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>3</sup> + z<sub>0</sub>',
-	    	escapeTime: function(x, y, maxIter, radius, normalised) {
+	    	escapeTime: function(x, y, crl, cim, maxIter, radius, normalised) {
 	    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
 
 	    		for (;;) {
@@ -462,8 +487,8 @@ $.extend(Mandelbrot, {
 	    			if (sqrl + sqim > sqr) {
 	    				break;
 	    			}
-	    			rl = rl * (sqrl - (3 * sqim)) + x;
-	    			im = im * (sqim - (3 * sqrl)) + y;
+	    			rl = rl * (sqrl - (3 * sqim)) + crl;
+	    			im = im * (sqim - (3 * sqrl)) + cim;
 	    			if (++i >= maxIter) {
 	    				return [maxIter, 0, 3];
 	    			}
@@ -481,7 +506,7 @@ $.extend(Mandelbrot, {
 	    {
 	    	name: 'mandelbrot conjugate quartic',
 	    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>4</sup> + z<sub>0</sub>',
-	    	escapeTime: function(x, y, maxIter, radius, normalised) {
+	    	escapeTime: function(x, y, crl, cim, maxIter, radius, normalised) {
 	    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
 
 	    		for (;;) {
@@ -492,8 +517,8 @@ $.extend(Mandelbrot, {
 	    			}
 	    			rlim = rl * im;
 	    			diffsq = sqrl - sqim;
-	    			im = y - (4 * rlim * diffsq);
-	    			rl = (diffsq * diffsq) - (4 * rlim * rlim) + x;
+	    			im = cim - (4 * rlim * diffsq);
+	    			rl = (diffsq * diffsq) - (4 * rlim * rlim) + crl;
 	    			if (++i >= maxIter) {
 	    				return [maxIter, 0, 4];
 	    			}
@@ -511,7 +536,7 @@ $.extend(Mandelbrot, {
 	    {
 	    	name: 'mandelbrot conjugate quintic',
 	    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>5</sup> + z<sub>0</sub>',
-	    	escapeTime: function(x, y, maxIter, radius, normalised) {
+	    	escapeTime: function(x, y, crl, cim, maxIter, radius, normalised) {
 	    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
 
 	    		for (;;) {
@@ -520,8 +545,8 @@ $.extend(Mandelbrot, {
 	    			if ((sqrl + sqim) > sqr) {
 	    				break;
 	    			}
-	    			rl = (rl * ((sqrl * (sqrl - sqim)) + (sqim * ((5 * sqim) - (9 * sqrl))))) + x;
-	    			im = (im * ((sqim * (sqrl - sqim)) + (sqrl * ((9 * sqim) - (5 * sqrl))))) + y;
+	    			rl = (rl * ((sqrl * (sqrl - sqim)) + (sqim * ((5 * sqim) - (9 * sqrl))))) + crl;
+	    			im = (im * ((sqim * (sqrl - sqim)) + (sqrl * ((9 * sqim) - (5 * sqrl))))) + cim;
 	    			if (++i >= maxIter) {
 	    				return [maxIter, 0, 5];
 	    			}

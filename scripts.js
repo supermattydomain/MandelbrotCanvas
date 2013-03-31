@@ -13,6 +13,7 @@ jQuery(function() {
 			displayEquation = $('#equation'), mandelbrot,
 			buttonZoomIn = $('#zoomin'), buttonZoomOut = $('#zoomout'),
 			buttonStop = $('#stop'), displayName = $('#name'),
+			buttonJulia = $('#toggleJulia'),
 			resizable = $('.resizable'),
 			renderProgress = $('#renderProgress');
 		// Create a Mandelbrot set and controls
@@ -46,6 +47,7 @@ jQuery(function() {
 			displayRadius.val(mandelbrot.getRadius());
 			displayEquation.html(mandelbrot.getFractalType().equation);
 			displayName.text(displayFractalType.find(':selected').text());
+			buttonJulia.val(mandelbrot.isJulia() ? 'Mandelbrot' : 'Julia');
 			mandelbrot.update();
 		}
 		canvas.on('mousemove', function(event) {
@@ -91,6 +93,10 @@ jQuery(function() {
 		buttonStop.on('click', function() {
 			mandelbrot.stop();
 		});
+		buttonJulia.on('click', function() {
+			mandelbrot.toggleJulia();
+			update();
+		});
 		displayNormalised.on('change', function() {
 			mandelbrot.setNormalised($(this).prop('checked'));
 			update();
@@ -113,7 +119,7 @@ jQuery(function() {
 			mandelbrot.setScale(1.318989403545856e-13);
 			update();
 		});
-		mandelbrot.canvas.on(Mandelbrot.eventNames.renderProgress, function(event, percentDone) {
+		$(mandelbrot.canvas).on(Mandelbrot.eventNames.renderProgress, function(event, percentDone) {
 			renderProgress.progressbar('option', 'value', percentDone);
 		});
 		renderProgress.progressbar({value: 0, max: 100});
