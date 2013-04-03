@@ -16,8 +16,12 @@ jQuery(function() {
 			buttonJulia = $('#toggleJulia'),
 			resizable = $('.resizable'),
 			renderProgress = $('#renderProgress'),
-			displayPixelsPerSecond = $('#pixelsPerSecond');
-		// Create a Mandelbrot set and controls
+			displayPixelsPerSecond = $('#pixelsPerSecond'),
+			displayJuliaRl = $('#juliarl'),
+			displayJuliaIm = $('#juliaim'),
+			onlyJulia = $('.onlyJulia'),
+			renderProgressText = $('#renderProgressText');
+		// Populate escape-time calculator and colourmap drop-down lists
 		$(Mandelbrot.colourMaps).each(function(i, cmap) {
 			// Generate an entry in the drop-down select list for this colour map
 			var option = $('<option>');
@@ -36,38 +40,31 @@ jQuery(function() {
 			}
 			displayFractalType.append(option);
 		});
+		// Create a Mandelbrot set and controls
 		mandelbrot = new Mandelbrot.MandelbrotCanvas(canvas, Mandelbrot.escapeTimeCalculators[0], Mandelbrot.colourMaps[0]);
 		function update() {
 			displayCentreRl.val(mandelbrot.getCentre()[0]);
 			displayCentreIm.val(mandelbrot.getCentre()[1]);
+			displayJuliaRl.val(mandelbrot.getJuliaConstant()[0]);
+			displayJuliaIm.val(mandelbrot.getJuliaConstant()[1]);
 			displayScale.val(mandelbrot.getScale());
 			displayColourMap.val(mandelbrot.getColourMap().name);
 			displayMaxIter.val(mandelbrot.getMaxIter());
 			displayFractalType.val(mandelbrot.getFractalType().name);
 			displayNormalised.prop('checked', mandelbrot.getNormalised());
 			displayRadius.val(mandelbrot.getRadius());
-			displayEquation.html(mandelbrot.getFractalType().getEquation(mandelbrot.isJulia()));
+			displayEquation.html(mandelbrot.getEquation());
 			displayName.text(displayFractalType.find(':selected').text());
 			buttonJulia.val(mandelbrot.isJulia() ? 'Mandelbrot' : 'Julia');
+			onlyJulia.css('visibility', mandelbrot.isJulia() ? 'visible' : 'hidden');
 			mandelbrot.update();
 		}
-		canvas.on('mousemove', function(event) {
-			displayMouseRl.text(mandelbrot.colToX(event.pageX - canvas.offset().left + 0.5));
-			displayMouseIm.text(mandelbrot.rowToY(event.pageY - canvas.offset().top + 0.5));
-		}).on('mouseleave', function() {
-			displayMouseRl.val('');
-			displayMouseIm.val('');
-		}).on('click', function(event) {
-			mandelbrot.setCentre(mandelbrot.colToX(event.pageX - canvas.offset().left + 0.5), mandelbrot.rowToY(event.pageY - canvas.offset().top + 0.5));
-			mandelbrot.zoomInBy(2);
+		displayCentreRl.add(displayCentreIm).on('change', function() {
+			mandelbrot.setCentre(parseFloat(displayCentreRl.val()), parseFloat(displayCentreIm.val()));
 			update();
 		});
-		displayCentreRl.on('change', function() {
-			mandelbrot.setCentre(parseFloat($(this).val()), mandelbrot.getCentre()[1]);
-			update();
-		});
-		displayCentreIm.on('change', function() {
-			mandelbrot.setCentre(mandelbrot.getCentre()[0], parseFloat($(this).val()));
+		displayJuliaRl.add(displayJuliaIm).on('change', function() {
+			mandelbrot.setJuliaConstant(parseFloat(displayJuliaRl.val()), parseFloat(displayJuliaIm.val()));
 			update();
 		});
 		displayScale.on('change', function() {
@@ -99,6 +96,10 @@ jQuery(function() {
 		});
 		buttonJulia.on('click', function() {
 			mandelbrot.toggleJulia();
+			if (mandelbrot.isJulia()) {
+				// When switching to Julia set, use current centre of view as Julia constant
+				mandelbrot.setJuliaConstant.apply(mandelbrot, mandelbrot.getCentre());
+			}
 			update();
 		});
 		displayNormalised.on('change', function() {
@@ -118,22 +119,37 @@ jQuery(function() {
 		});
 		$('#preset1').on('click', function() {
 			// A Julia set within the Mandelbrot set.
-			mandelbrot.setFractalType(Mandelbrot.escapeTimeCalculators[0]);
-			mandelbrot.setColourMap(Mandelbrot.colourMaps[0]);
-			mandelbrot.setNormalised(true);
-			mandelbrot.setCentre(-0.743643887037151, 0.131825904205330);
-			mandelbrot.setMaxIter(5000);
-			mandelbrot.setScale(1.318989403545856e-13);
+			mandelbrot.setFractalType(Mandelbrot.escapeTimeCalculators[0])
+			.setJulia(false)
+			.setColourMap(Mandelbrot.colourMaps[0])
+			.setNormalised(true)
+			.setCentre(-0.743643887037151, 0.131825904205330)
+			.setMaxIter(5000)
+			.setScale(1.318989403545856e-13);
 			update();
 		});
-		$(mandelbrot.canvas).on(Mandelbrot.eventNames.renderProgress, function(event, percentDone) {
+		canvas.on('mousemove', function(event) {
+			displayMouseRl.text(mandelbrot.colToX(event.pageX - canvas.offset().left + 0.5));
+			displayMouseIm.text(mandelbrot.rowToY(event.pageY - canvas.offset().top  + 0.5));
+		}).on('mouseleave', function() {
+			displayMouseRl.val('');
+			displayMouseIm.val('');
+		}).on('click', function(event) {
+			mandelbrot.setCentre(
+				mandelbrot.colToX(event.pageX - canvas.offset().left + 0.5),
+				mandelbrot.rowToY(event.pageY - canvas.offset().top + 0.5)
+			).zoomInBy(2);
+			update();
+		}).on(Mandelbrot.eventNames.renderProgress, function(event, percentDone) {
 			renderProgress.progressbar('option', 'value', percentDone);
+			renderProgressText.text(percentDone + '% complete');
 		}).on(Mandelbrot.eventNames.pixelsPerSecond, function(event, pixelsPerSecond) {
 			displayPixelsPerSecond.text(roundPlaces(pixelsPerSecond, 2));
 		}).on(Mandelbrot.eventNames.renderStart, function() {
 			buttonStop.removeAttr('disabled');
 		}).on(Mandelbrot.eventNames.renderEnd, function() {
 			buttonStop.attr('disabled', 'disabled');
+			renderProgressText.text('Finished');
 		});
 		renderProgress.progressbar({value: 0, max: 100});
 		update();

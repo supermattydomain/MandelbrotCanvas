@@ -20,6 +20,15 @@ button {
 	height: 1em;
 }
 
+#renderProgressText {
+	position: absolute;
+	width: 100%;
+	top: 0;
+	left: 0;
+	z-index: 99;
+	text-align: center;
+}
+
 #pixelsPerSecondWrapper {
 	float: left;
 	position: relative;

@@ -29,11 +29,13 @@ Mandelbrot.MandelbrotCanvas = function(canvas, etCalc, cmap) {
 };
 
 $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
-	centreRl : 0,
-	centreIm : 0,
-	maxIter : 100,
-	julia: false,
-	normalised : true,
+	centreRl      : 0,
+	centreIm      : 0,
+	juliaRl       : 0,
+	juliaIm       : 0,
+	maxIter       : 100,
+	julia         : false,
+	normalised    : true,
 	bandHeightMin : 10,
 	bandHeightMax : 20,
 	/**
@@ -41,7 +43,7 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 	 * exceeds two escapes to infinity). However, setting radius > 2 improves
 	 * the smoothness of the colouring.
 	 */
-	radius : 4,
+	radius        : 4,
 	// TODO: Normalise scale so that at scale===1, whole set is in view.
 	toggleJulia: function() {
 		this.julia = !this.julia;
@@ -80,11 +82,8 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 			xinc = undefined, yinc = undefined, // Silence Eclipse warnings
 			et, colour, percent, endTime;
 		if (isJulia) {
-			// FIXME: This causes the Julia set's constant parameter C to always be the same
-			// as the centre of the image.
-			// TODO: Need to be able to specify the Julia parameter independently of the image centre.
-			xinc = this.centreRl;
-			yinc = this.centreIm;
+			xinc = this.juliaRl;
+			yinc = this.juliaIm;
 		}
 		for (; r < rowEnd; r++) {
 			for (c = 0; c < width; c++) {
@@ -187,6 +186,21 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 		this.centreRl = rl;
 		this.centreIm = im;
 		return this;
+	},
+	setJuliaConstant: function(rl, im) {
+		this.juliaRl = rl;
+		this.juliaIm = im;
+		return this;
+	},
+	getJuliaConstant: function() {
+		return [ this.juliaRl, this.juliaIm ];
+	},
+	getEquation: function() {
+		var ret = this.calc.getEquation(this.julia);
+		if (this.julia) {
+			ret += ', where C = ' + this.juliaRl + ' + ' + this.juliaIm + 'i';
+		}
+		return ret;
 	},
 	getScale : function() {
 		return this.scale;
