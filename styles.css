@@ -19,3 +19,14 @@ button {
 #renderProgress {
 	height: 1em;
 }
+
+#pixelsPerSecondWrapper {
+	float: left;
+	position: relative;
+	min-width: 10ex;
+	margin-right: 0.5ex;
+}
+
+#pixelsPerSecond {
+	float: right;
+}

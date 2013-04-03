@@ -17,6 +17,9 @@
 <script type="text/javascript" src="../lib/js-lib/colours.js"></script>
 <script type="text/javascript" src="../lib/js-lib/canvas.js"></script>
 <script type="text/javascript" src="../lib/js-lib/colour_conversions.js"></script>
+<script type="text/javascript" src="../lib/js-lib/setZeroTimeout.js"></script>
+<script type="text/javascript" src="colourmaps.js"></script>
+<script type="text/javascript" src="etcalc.js"></script>
 <script type="text/javascript" src="mandelbrot.js"></script>
 <script type="text/javascript" src="scripts.js"></script>
 </head>
@@ -41,17 +44,18 @@ You can resize the image by dragging its edges.
 <tr><td>Scale</td><td><input id="scale"></td></tr>
 <tr><td>Max iterations</td><td><input id="maxiter"></td></tr>
 <tr><td>Max radius</td><td><input id="radius"></td></tr>
-<tr><td>Mouse real</td><td><input id="mouserl" disabled="disabled"></td></tr>
-<tr><td>Mouse imaginary</td><td><input id="mouseim" disabled="disabled"></td></tr>
+<tr><td>Mouse real</td><td><span id="mouserl"></span></td></tr>
+<tr><td>Mouse imaginary</td><td><span id="mouseim"></span></td></tr>
 <tr><td>Fractal type</td><td><select id="fractaltype"></select></td></tr>
 <tr><td>Colour map</td><td><select id="colourmap"></select></td></tr>
 <tr><td colspan="2"><input type="checkbox" id="normalised"><label for="normalised">Normalise iteration count</label></td></tr>
 <tr><td colspan="2">
-<button id="zoomin">Zoom in</button>
-<button id="zoomout">Zoom out</button>
-<button id="stop">Stop</button>
-<button id="toggleJulia">Julia</button>
+<input type="button" id="zoomin" value="Zoom in" />
+<input type="button" id="zoomout" value="Zoom out" />
+<input type="button" id="stop" value="Stop" />
+<input type="button" id="toggleJulia" value="Julia" />
 </td></tr>
+<tr><td><div id="pixelsPerSecondWrapper"><span id="pixelsPerSecond"></span></div> pixels/sec</td></tr>
 <tr><td colspan="2"><div id="renderProgress"></div></td></tr>
 </table>
 </div>

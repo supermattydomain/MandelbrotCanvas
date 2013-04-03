@@ -8,17 +8,24 @@ if (typeof(Mandelbrot) === 'undefined') {
  * @param canvas
  *            A jQuery wrapper around the HTML5 canvas element to draw into
  * @param cmap
- *            Name of the colourmap to use
+ *            Colourmap to use
  * @param etCalcName
- *            Name of the escape-time calculator to use
+ *            Escape-time calculator to use
  */
 Mandelbrot.MandelbrotCanvas = function(canvas, etCalc, cmap) {
 	this.$canvas = canvas;
 	this.canvas = this.$canvas[0];
 	this.context = this.canvas.getContext("2d");
+	// TODO: Rename scale to zoom and invert its sense throughout
 	this.scale = 5 / Math.min(this.canvas.width, this.canvas.height);
-	this.setFractalType(etCalc);
-	this.setColourMap(cmap);
+	this.setFractalType(etCalc).setColourMap(cmap);
+	this.bandHeight = Math.max(
+		this.bandHeightMin,
+		Math.min(
+			this.bandHeightMax,
+			Math.floor(this.canvas.height / 10)
+		)
+	);
 };
 
 $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
@@ -27,6 +34,8 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 	maxIter : 100,
 	julia: false,
 	normalised : true,
+	bandHeightMin : 10,
+	bandHeightMax : 20,
 	/**
 	 * A radius of 2 is mathematically sufficient (as any point whose modulus
 	 * exceeds two escapes to infinity). However, setting radius > 2 improves
@@ -36,12 +45,14 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 	// TODO: Normalise scale so that at scale===1, whole set is in view.
 	toggleJulia: function() {
 		this.julia = !this.julia;
+		return this;
 	},
 	isJulia: function() {
 		return this.julia;
 	},
 	setJulia: function(newJulia) {
 		this.julia = newJulia;
+		return this;
 	},
 	colToX : function(c) {
 		return (c + 0.5 - this.canvas.width / 2) * this.scale + this.centreRl;
@@ -51,123 +62,107 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 		// The set is symmetrical, but the co-ordinates are shown to the user.
 		return -(r + 0.5 - this.canvas.height / 2) * this.scale + this.centreIm;
 	},
-	makeColour: function(cmap, n, lastVal, power, maxIter, normalised) {
-		// Points in the set are black
-		if (n === maxIter) {
-			return [0, 0, 0, 255];
+	drawMore: function(r, imageData, startTime) {
+		var that = this,
+			// These avoid property lookups in the loops below
+			isJulia = this.julia,
+			width = this.canvas.width,
+			height = this.canvas.height,
+			// NOTE: This one prevents the use of 'this' in the iteration functions
+			iterate = this.calc.getIterFunc(),
+			maxIter = this.maxIter,
+			radius = this.radius,
+			normalised = this.normalised,
+			cmap = this.cmap,
+			rowStart = r,
+			rowEnd = Math.min(rowStart + this.bandHeight, height),
+			c, x0, y0,
+			xinc = undefined, yinc = undefined, // Silence Eclipse warnings
+			et, colour, percent, endTime;
+		if (isJulia) {
+			// FIXME: This causes the Julia set's constant parameter C to always be the same
+			// as the centre of the image.
+			// TODO: Need to be able to specify the Julia parameter independently of the image centre.
+			xinc = this.centreRl;
+			yinc = this.centreIm;
 		}
-		// Lazily generate this colourmap's table of colours
-		if (!cmap.colourMap.length) {
-			cmap.genColourMap();
+		for (; r < rowEnd; r++) {
+			for (c = 0; c < width; c++) {
+				x0 = this.colToX(c);
+				y0 = this.rowToY(r);
+				if (!isJulia) {
+					xinc = x0;
+					yinc = y0;
+				}
+				et = iterate(
+					isJulia,
+					x0, y0,
+					xinc, yinc,
+					maxIter,
+					radius,
+					normalised
+				);
+				colour = cmap.makeColour(
+					et[0], et[1], et[2],
+					maxIter,
+					normalised
+				);
+				if (!this.running) {
+					this.$canvas.trigger(Mandelbrot.eventNames.renderEnd);
+					return; // Aborted
+				}
+				setPixel(
+					imageData, c, r,
+					colour[0], colour[1], colour[2], colour[3]
+				);
+			}
 		}
-		// Outside the set, iteration count modulo entire colourmap size selects colour
-		if (normalised) {
-			// Generate a fractional normalised iteration count
-			n = Math.max(0, n + 1 - Math.log(Math.log(lastVal)) / Math.log(power));
+		endTime = new Date();
+		this.context.putImageData(imageData, 0, 0, 0, rowStart, width, rowEnd - rowStart);
+		this.$canvas.trigger(Mandelbrot.eventNames.pixelsPerSecond, rowEnd * width * 1000 / (endTime - startTime));
+		if (r < height) {
+			percent = Math.floor((r * 100.0) / height);
+			// TODO: Animate the progress bar smoothly.
+			// FIXME: This animates it, but all of the
+			// animation occurs after rendering is complete:
+			/*
+			 * $('.ui-progressbar-value').stop(true).animate({width: percent + '%'}, 1000, function() {
+			 *     this.$canvas.trigger(Mandelbrot.eventNames.renderProgress, percent);
+			 * });
+			 */
+			this.$canvas.trigger(Mandelbrot.eventNames.renderProgress, percent);
+			setZeroTimeout(function() {
+				r = that.drawMore(r, imageData, startTime);
+			});
+		} else {
+			this.$canvas.trigger(Mandelbrot.eventNames.renderProgress, 100);
+			this.$canvas.trigger(Mandelbrot.eventNames.renderEnd);
 		}
-		// Increases in iteration count cause only logarithmic changes in colourmap entry
-		n = Math.max(0, logBase(1.3, n));
-		if (normalised) {
-			// Use fractional iteration count to interpolate between colours
-			return interpolateColour(
-				cmap.colourMap[Math.floor(n) % cmap.colourMap.length],
-				cmap.colourMap[(Math.floor(n) + 1) % cmap.colourMap.length],
-				n - Math.floor(n)
-			);
-		}
-		// Return an entry directly from the colour map
-		return cmap.colourMap[Math.floor(n) % cmap.colourMap.length];
+		return r;
 	},
 	/**
 	 * The below performs the calculations and redraws in
-	 * multiple calls to a function using setTimeout, so that
+	 * multiple calls to a function using setZeroTimeout, so that
 	 * the browser can redraw the UI between calls.
 	 * TODO: Use web worker if available
 	 */
 	update : function() {
-		var bandHeightMin = 10, bandHeightMax = 20,
-			r = 0, that = this,
-			isJulia = this.julia,
-			width = this.canvas.width,
-			height = this.canvas.height,
-			bandHeight = Math.max(
-				bandHeightMin,
-				Math.min(
-					bandHeightMax,
-					Math.floor(height / 10)
-				)
-			),
-			imageData = this.context.getImageData(0, 0, width, height);
+		var r = 0, that = this,
+			imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height),
+			startTime = undefined; // Silence Eclipse warning
 		this.stop();
+		this.running = true;
 		this.$canvas.trigger(Mandelbrot.eventNames.renderProgress, 0);
-		function updateFunc(mandelbrot, myUpdateTimeout) {
-			var rowEnd = Math.min(r + bandHeight, height), c,
-				x0, y0,
-				xinc = undefined, yinc = undefined, // Silence Eclipse warnings
-				et, colour, percent;
-			if (isJulia) {
-				xinc = mandelbrot.colToX(width  / 2 + 0.5);
-				yinc = mandelbrot.rowToY(height / 2 + 0.5);
-			}
-			for (; r < rowEnd; r++) {
-				for (c = 0; c < width; c++) {
-					x0 = mandelbrot.colToX(c);
-					y0 = mandelbrot.rowToY(r);
-					if (!isJulia) {
-						xinc = x0;
-						yinc = y0;
-					}
-					et = mandelbrot.calc.escapeTime.call(
-						mandelbrot.calc,
-						x0, y0,
-						xinc, yinc,
-						mandelbrot.maxIter,
-						mandelbrot.radius,
-						mandelbrot.normalised
-					);
-					colour = mandelbrot.makeColour(
-						mandelbrot.cmap,
-						et[0], et[1], et[2],
-						mandelbrot.maxIter,
-						mandelbrot.normalised
-					);
-					if (mandelbrot.updateTimeout !== myUpdateTimeout) {
-						return; // Abort - no longer the current render thread
-					}
-					setPixel(
-						imageData, c, r,
-						colour[0], colour[1], colour[2], colour[3]
-					);
-				}
-			}
-			// TODO: Only need to blit one scanline
-			mandelbrot.context.putImageData(imageData, 0, 0);
-			if (r < height) {
-				percent = Math.floor((r * 100.0) / height);
-				// TODO: Animate the progress bar smoothly.
-				// FIXME: This animates it, but all of the
-				// animation occurs after rendering is complete:
-				/*
-				 * $('.ui-progressbar-value').stop(true).animate({width: percent + '%'}, 1000, function() {
-				 *     mandelbrot.$canvas.trigger(Mandelbrot.eventNames.renderProgress, percent);
-				 * });
-				 */
-				mandelbrot.$canvas.trigger(Mandelbrot.eventNames.renderProgress, percent);
-				mandelbrot.updateTimeout = setTimeout(function() {
-					updateFunc(mandelbrot, mandelbrot.updateTimeout);
-				});
-			} else {
-				mandelbrot.context.putImageData(imageData, 0, 0);
-				mandelbrot.$canvas.trigger(Mandelbrot.eventNames.renderProgress, 100);
-			}
-		}
-		this.updateTimeout = setTimeout(function() {
-			updateFunc(that, that.updateTimeout);
+		this.$canvas.trigger(Mandelbrot.eventNames.renderStart);
+		startTime = new Date();
+		setZeroTimeout(function() {
+			r = that.drawMore(r, imageData, startTime);
 		});
+		return this;
 	},
 	stop : function() {
-		clearTimeout(this.updateTimeout);
-		this.updateTimeout = null;
+		this.running = false;
+		return this;
 	},
 	/**
 	 * NOTE: I would like to simply translate and scale the
@@ -183,7 +178,7 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 	 * NOTE: No, that would not work. The Canvas' putImageData
 	 * method does not use the transformation matrix. You can
 	 * however draw a canvas onto another canvas, possibly with
-	 * transformation.
+	 * transformation. But that sounds slow.
 	 */
 	getCentre : function() {
 		return [ this.centreRl, this.centreIm ];
@@ -191,375 +186,69 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 	setCentre : function(rl, im) {
 		this.centreRl = rl;
 		this.centreIm = im;
+		return this;
 	},
 	getScale : function() {
 		return this.scale;
 	},
 	setScale : function(newScale) {
 		this.scale = newScale;
-		return this.scale;
+		return this;
 	},
 	zoomBy : function(factor) {
 		this.scale *= factor;
-		return this.scale;
+		return this;
 	},
 	zoomInBy : function(factor) {
-		return this.zoomBy(1 / factor);
+		this.zoomBy(1 / factor);
+		return this;
 	},
 	zoomOutBy : function(factor) {
-		return this.zoomBy(factor);
+		this.zoomBy(factor);
+		return this;
 	},
 	getMaxIter : function() {
 		return this.maxIter;
 	},
 	setMaxIter : function(newMaxIter) {
 		this.maxIter = newMaxIter;
+		return this;
 	},
 	getRadius : function() {
 		return this.radius;
 	},
 	setRadius : function(newRadius) {
 		this.radius = newRadius;
+		return this;
 	},
 	getColourMap : function() {
 		return this.cmap;
 	},
 	setColourMap : function(newCmap) {
 		this.cmap = newCmap;
+		return this;
 	},
 	getFractalType : function() {
 		return this.calc;
 	},
 	setFractalType : function(newCalc) {
 		this.calc = newCalc;
+		return this;
 	},
 	getNormalised : function() {
 		return this.normalised;
 	},
 	setNormalised : function(newNormalised) {
 		this.normalised = newNormalised;
+		return this;
 	}
 });
 
 $.extend(Mandelbrot, {
-	/**
-	 * Various ways of mapping escape-time values to a repeating range of colours.
-	 */
-	colourMaps: [
-	    /**
-	     * A ramp through the rainbow in hue.
-	     */
-	    {
-	    	name: 'rainbow',
-	    	numGradations: 10, // Gradations per colour map
-	    	colourMap: [],
-	    	genColourMap: function() {
-	    		var h = 0, s = 0.6, v = 0.8, i;
-	    		for (i = 0; i < this.numGradations; i++) {
-	    			var rgb = hsvToRgb(h + (i / this.numGradations), s, v);
-	    			this.colourMap[i] = [ rgb[0], rgb[1], rgb[2], 255 ];
-	    		}
-	    	}
-	    },
-	    /**
-	     * A 'smooth' ramp from red to green to blue and back to red.
-	     */
-	   	{
-	   		name: 'RGB',
-	    	numGradations: 5, // Gradations per colour transition; three transitions per colour map
-	    	colourMap: [],
-	    	genColourMap: function() {
-	    		var i, n, max = 128;
-	    		for (i = 0; i < this.numGradations * 3; i++) {
-	    			n = max * i / this.numGradations; // amount into transition into next colour
-	    			// from red at 0 to green at 1/3
-	    			this.colourMap[i] = [
-	    			    max - n, // red monotonic decrease
-	    				n,  // green monotonic increase
-	    				0,  // blue constant
-	    				255 // alpha constant
-	    			];
-	    			// from green at 1/3 to blue at 2/3
-	    			this.colourMap[i + this.numGradations] = [
-	    				0,  // red constant
-	    				max - n, // green monotonic decrease
-	    				n,  // blue monotonic increase
-	    				255 // alpha constant
-	    			];
-	    			// from blue at 2/3 to red at 3/3==0
-	    			this.colourMap[i + this.numGradations + this.numGradations] = [
-	    			    n,  // red monotonic increase
-	    				0,  // green constant
-	    				max - n, // blue monotonic decrease
-	    				255 // alpha constant
-	    			];
-	    		}
-	    	}
-	    }
-	],
-	/**
-	 * Calculate number of iterations of Mandelbrot function (ie terms in
-	 * sequence) before given point z = (x(1) + y(1)i) escapes circle of given
-	 * radius. For the Mandelbrot set relation, any point that escapes a circle
-	 * of radius 2 increases to infinity and therefore is not in the set. If we
-	 * reach n iterations, give up and return n.
-	 * TODO: The below calculations might be more efficient in polar co-ords.
-	 */
-	escapeTimeCalculators: [
-	    /**
-	     * Classical Mandelbrot (quadratic).
-	     * First term of orbit series = z(0) = x(0) + y(0)i ;
-	     * then z(1) = z(0)^2 + z(0) = (x(0) + y(0)i)^2 + x(0) + y(0)i ;
-	     * generally, z(n+1) = z(n)^2 + z(0) = z(n)^2 + x(0) + y(0)i .
-	     * Solving separately for the real and imaginary components:
-	     * x(n+1) = x(n)^2 - y(n)^2 + x(0), and
-	     * y(n+1) = 2x(n)y(n) + y(0)
-	     * TODO: detect underflow and use bignum library for greater precision?
-	     */
-		{
-			name: 'mandelbrot',
-			equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>2</sup> + z<sub>0</sub>',
-	    	escapeTime: function(x, y, crl, cim, maxIter, radius, normalised) {
-	    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius, q;
-	    		// Optimisation: is this point inside the main point-attractor cardioid?
-	    		q = (x - 0.25) * (x - 0.25) + y * y;
-	    		if (q * (q + x - 0.25) < y * y / 4) {
-	    			return [maxIter, 0, 2]; // Inside the cardioid
-	    		}
-	    		// Optimisation: is this point inside the period 2 bulb to the left of the cardioid?
-	    		if ((x + 1) * (x + 1) + y * y < 0.0625) {
-	    			return [maxIter, 0, 2]; // Inside period 2 bulb
-	    		}
-
-	    		for (;;) {
-	    			sqrl = rl * rl;
-	    			sqim = im * im;
-	    			if (sqrl + sqim > sqr) {
-	    				break;
-	    			}
-	    			im = (2 * rl * im) + cim;
-	    			rl = sqrl - sqim + crl;
-	    			if (++i >= maxIter) {
-	    				return [maxIter, 0, 2];
-	    			}
-	    		}
-
-	    		if (normalised) {
-	        		return [i, Math.sqrt(sqrl + sqim), 2];    			
-	    		}
-	    		return [i, 0, 2];
-	    	}
-	    },
-	    /**
-	     * Mandelbrot cubic: z(n+1) = z(n)^3 + z(0)
-	     * R(n+1) = R(n)(R(n)^2 - 3I(n)^2) + R(0)
-	     * and
-	     * I(n+1) = I(n)((3R(n)^2 - I(n)^2) + I(0))
-	     */
-	    {
-	    	name: 'mandelbrot cubic',
-	    	equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>3</sup> + z<sub>0</sub>',
-	    	escapeTime: function(x, y, crl, cim, maxIter, radius, normalised) {
-	    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius, newrl;
-
-	    		for (;;) {
-	    			sqrl = rl * rl;
-	    			sqim = im * im;
-	    			if (sqrl + sqim > sqr) {
-	    				break;
-	    			}
-	    			newrl = rl * (sqrl - 3 * sqim) + crl;
-	    			im = im * (3 * sqrl - sqim) + cim;
-	    			rl = newrl;
-	    			if (++i >= maxIter) {
-	    				return [maxIter, 0, 3];
-	    			}
-	    		}
-
-	    		if (normalised) {
-	    			return [i, Math.sqrt(sqrl + sqim), 3];
-	    		}
-	    		return [i, 0, 3];
-	    	}
-	    },
-	    /**
-	     * Mandelbrot quartic: z(n+1) = z(n)^4 + z(0)
-	     * (a+bi)^4 = 1a^4 + 4a^3(bi) + 6a^2(bi)^2 + 4a(bi)^3 + 1(bi)^4
-	     *          = a^4  + 4a^3bi   - 6a^2b^2    - 4ab^3i   + b^4
-	     *          = a^4 + b^4 - 6a^2b^2 + (4a^3b - 4ab^3)i
-	     * R(n+1)   = a^4 + b^4 - 6a^2b^2 + R(0)
-	     * I(n+1)   = 4a^3b - 4ab^3 + I(0)
-	     */
-	    {
-	    	name: 'mandelbrot quartic',
-	    	equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>4</sup> + z<sub>0</sub>',
-	    	escapeTime: function(x, y, crl, cim, maxIter, radius, normalised) {
-	    		var rl = x, im = y, sqrl = 0, sqim = 0, newrl, i = 0, sqr = radius * radius;
-
-	    		for (;;) {
-	    			sqrl = rl * rl;
-	    			sqim = im * im;
-	    			if (sqrl + sqim > sqr) {
-	    				break;
-	    			}
-	    			newrl = sqrl * sqrl + sqim * sqim - 6 * sqrl * sqim + crl;
-	    			im = 4 * sqrl * rl * im - 4 * rl * sqim * im + cim;
-	    			rl = newrl;
-	    			if (++i >= maxIter) {
-	    				return [maxIter, 0, 4];
-	    			}
-	    		}
-
-	    		if (normalised) {
-	        		return [i, Math.sqrt(sqrl + sqim), 4];
-	    		}
-	    		return [i, 0, 4];
-	    	}
-	    },
-	    /**
-	     * Mandelbrot quintic: z(n+1) = z(n)^5 + z(0)
-	     */
-	    {
-	    	name: 'mandelbrot quintic',
-	    	equation: 'z<sub>n+1</sub> = z<sub>n</sub><sup>5</sup> + z<sub>0</sub>',
-	    	escapeTime: function(x, y, crl, cim, maxIter, radius, normalised) {
-	    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
-
-	    		for (;;) {
-	    			sqrl = rl * rl;
-	    			sqim = im * im;
-	    			if ((sqrl + sqim) > sqr) {
-	    				break;
-	    			}
-	    			rl = (rl * ((sqrl * (sqrl - sqim)) - (9 * sqrl * sqim) + (5 * sqim * sqim))) + crl;
-	    			im = (im * ((sqim * (sqim - (10 * sqrl))) + (5 * sqrl * sqrl))) + cim;
-	    			if (++i >= maxIter) {
-	    				return [maxIter, 0, 5];
-	    			}
-	    		}
-
-	    		if (normalised) {
-	        		return [i, Math.sqrt(sqrl + sqim), 5];
-	    		}
-	    		return [i, 0, 5];
-	    	}
-	    },
-		/**
-		 * Mandelbrot conjugate aka Mandelbar aka Tricorn: z(n+1) = con(z)^2 + z(0)
-		 */
-	    {
-	    	name: 'mandelbrot conjugate',
-	    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>2</sup> + z<sub>0</sub>',
-	    	escapeTime: function(x, y, crl, cim, maxIter, radius, normalised) {
-	    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
-
-	    		for (;;) {
-	    			sqrl = rl * rl;
-	    			sqim = im * im;
-	    			if (sqrl + sqim > sqr) {
-	    				break;
-	    			}
-	    			im = (-2 * rl * im) + cim;
-	    			rl = sqrl - sqim + crl;
-	    			if (++i >= maxIter) {
-	    				return [maxIter, 0, 2];
-	    			}
-	    		}
-
-	    		if (normalised) {
-	        		return [i, Math.sqrt(sqrl + sqim), 2];
-	    		}
-	    		return [i, 0, 2];
-	    	}
-		},
-		/**
-		 * Mandelbrot conjugate cubic: z(n+1) = con(z)^3 + z(0)
-		 */
-	    {
-	    	name: 'mandelbrot conjugate cubic',
-	    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>3</sup> + z<sub>0</sub>',
-	    	escapeTime: function(x, y, crl, cim, maxIter, radius, normalised) {
-	    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
-
-	    		for (;;) {
-	    			sqrl = rl * rl;
-	    			sqim = im * im;
-	    			if (sqrl + sqim > sqr) {
-	    				break;
-	    			}
-	    			rl = rl * (sqrl - (3 * sqim)) + crl;
-	    			im = im * (sqim - (3 * sqrl)) + cim;
-	    			if (++i >= maxIter) {
-	    				return [maxIter, 0, 3];
-	    			}
-	    		}
-
-	    		if (normalised) {
-	        		return [i, Math.sqrt(sqrl + sqim), 3];
-	    		}
-	    		return [i, 0, 3];
-	    	}
-		},
-		/**
-		 * Mandelbrot conjugate quartic: z(n+1) = con(z)^4 + z(0)
-		 */
-	    {
-	    	name: 'mandelbrot conjugate quartic',
-	    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>4</sup> + z<sub>0</sub>',
-	    	escapeTime: function(x, y, crl, cim, maxIter, radius, normalised) {
-	    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
-
-	    		for (;;) {
-	    			sqrl = rl * rl;
-	    			sqim = im * im;
-	    			if (sqrl + sqim > sqr) {
-	    				break;
-	    			}
-	    			rlim = rl * im;
-	    			diffsq = sqrl - sqim;
-	    			im = cim - (4 * rlim * diffsq);
-	    			rl = (diffsq * diffsq) - (4 * rlim * rlim) + crl;
-	    			if (++i >= maxIter) {
-	    				return [maxIter, 0, 4];
-	    			}
-	    		}
-
-	    		if (normalised) {
-	        		return [i, Math.sqrt(sqrl + sqim), 4];
-	    		}
-	    		return [i, 0, 4];
-	    	}
-		},
-		/**
-		 * Mandelbrot conjugate quintic: z(n+1) = con(z)^5 + z(0)
-		 */
-	    {
-	    	name: 'mandelbrot conjugate quintic',
-	    	equation: 'z<sub>n+1</sub> = z&#x0305;<sub>n</sub><sup>5</sup> + z<sub>0</sub>',
-	    	escapeTime: function(x, y, crl, cim, maxIter, radius, normalised) {
-	    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius;
-
-	    		for (;;) {
-	    			sqrl = rl * rl;
-	    			sqim = im * im;
-	    			if ((sqrl + sqim) > sqr) {
-	    				break;
-	    			}
-	    			rl = (rl * ((sqrl * (sqrl - sqim)) + (sqim * ((5 * sqim) - (9 * sqrl))))) + crl;
-	    			im = (im * ((sqim * (sqrl - sqim)) + (sqrl * ((9 * sqim) - (5 * sqrl))))) + cim;
-	    			if (++i >= maxIter) {
-	    				return [maxIter, 0, 5];
-	    			}
-	    		}
-
-	    		if (normalised) {
-	        		return [i, Math.sqrt(sqrl + sqim), 5];
-	    		}
-	    		return [i, 0, 5];
-	    	}
-		}
-	],
 	eventNames: {
-		renderProgress: 'Mandelbrot.renderProgress'
+		renderProgress: 'Mandelbrot.renderProgress',
+		pixelsPerSecond: 'Mandelbrot.pixelsPerSecond',
+		renderStart: 'Mandelbrot.renderStart',
+		renderEnd: 'Mandelbrot.renderEnd'
 	}
 });

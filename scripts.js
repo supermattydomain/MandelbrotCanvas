@@ -15,7 +15,8 @@ jQuery(function() {
 			buttonStop = $('#stop'), displayName = $('#name'),
 			buttonJulia = $('#toggleJulia'),
 			resizable = $('.resizable'),
-			renderProgress = $('#renderProgress');
+			renderProgress = $('#renderProgress'),
+			displayPixelsPerSecond = $('#pixelsPerSecond');
 		// Create a Mandelbrot set and controls
 		$(Mandelbrot.colourMaps).each(function(i, cmap) {
 			// Generate an entry in the drop-down select list for this colour map
@@ -45,14 +46,17 @@ jQuery(function() {
 			displayFractalType.val(mandelbrot.getFractalType().name);
 			displayNormalised.prop('checked', mandelbrot.getNormalised());
 			displayRadius.val(mandelbrot.getRadius());
-			displayEquation.html(mandelbrot.getFractalType().equation);
+			displayEquation.html(mandelbrot.getFractalType().getEquation(mandelbrot.isJulia()));
 			displayName.text(displayFractalType.find(':selected').text());
 			buttonJulia.val(mandelbrot.isJulia() ? 'Mandelbrot' : 'Julia');
 			mandelbrot.update();
 		}
 		canvas.on('mousemove', function(event) {
-			displayMouseRl.val(mandelbrot.colToX(event.pageX - canvas.offset().left + 0.5));
-			displayMouseIm.val(mandelbrot.rowToY(event.pageY - canvas.offset().top + 0.5));
+			displayMouseRl.text(mandelbrot.colToX(event.pageX - canvas.offset().left + 0.5));
+			displayMouseIm.text(mandelbrot.rowToY(event.pageY - canvas.offset().top + 0.5));
+		}).on('mouseleave', function() {
+			displayMouseRl.val('');
+			displayMouseIm.val('');
 		}).on('click', function(event) {
 			mandelbrot.setCentre(mandelbrot.colToX(event.pageX - canvas.offset().left + 0.5), mandelbrot.rowToY(event.pageY - canvas.offset().top + 0.5));
 			mandelbrot.zoomInBy(2);
@@ -114,6 +118,9 @@ jQuery(function() {
 		});
 		$('#preset1').on('click', function() {
 			// A Julia set within the Mandelbrot set.
+			mandelbrot.setFractalType(Mandelbrot.escapeTimeCalculators[0]);
+			mandelbrot.setColourMap(Mandelbrot.colourMaps[0]);
+			mandelbrot.setNormalised(true);
 			mandelbrot.setCentre(-0.743643887037151, 0.131825904205330);
 			mandelbrot.setMaxIter(5000);
 			mandelbrot.setScale(1.318989403545856e-13);
@@ -121,6 +128,12 @@ jQuery(function() {
 		});
 		$(mandelbrot.canvas).on(Mandelbrot.eventNames.renderProgress, function(event, percentDone) {
 			renderProgress.progressbar('option', 'value', percentDone);
+		}).on(Mandelbrot.eventNames.pixelsPerSecond, function(event, pixelsPerSecond) {
+			displayPixelsPerSecond.text(roundPlaces(pixelsPerSecond, 2));
+		}).on(Mandelbrot.eventNames.renderStart, function() {
+			buttonStop.removeAttr('disabled');
+		}).on(Mandelbrot.eventNames.renderEnd, function() {
+			buttonStop.attr('disabled', 'disabled');
 		});
 		renderProgress.progressbar({value: 0, max: 100});
 		update();
