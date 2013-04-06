@@ -130,7 +130,7 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 			 * });
 			 */
 			this.$canvas.trigger(Mandelbrot.eventNames.renderProgress, percent);
-			setZeroTimeout(function() {
+			setImmediate(function() {
 				r = that.drawMore(r, imageData, startTime);
 			});
 		} else {
@@ -141,7 +141,7 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 	},
 	/**
 	 * The below performs the calculations and redraws in
-	 * multiple calls to a function using setZeroTimeout, so that
+	 * multiple calls to a function using setImmediate, so that
 	 * the browser can redraw the UI between calls.
 	 * TODO: Use web worker if available
 	 */
@@ -154,7 +154,7 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 		this.$canvas.trigger(Mandelbrot.eventNames.renderProgress, 0);
 		this.$canvas.trigger(Mandelbrot.eventNames.renderStart);
 		startTime = new Date();
-		setZeroTimeout(function() {
+		setImmediate(function() {
 			r = that.drawMore(r, imageData, startTime);
 		});
 		return this;
