@@ -68,19 +68,19 @@ jQuery(function() {
 			onlyJulia.css('visibility', mandelbrot.isJulia() ? 'visible' : 'hidden');
 			mandelbrot.update();
 		}
-		displayCentreRl.add(displayCentreIm).on('change', function() {
+		displayCentreRl.add(displayCentreIm).on('spinchange', function() {
 			mandelbrot.setCentre(parseFloat(displayCentreRl.val()), parseFloat(displayCentreIm.val()));
 			update();
 		});
-		displayJuliaRl.add(displayJuliaIm).on('change', function() {
+		displayJuliaRl.add(displayJuliaIm).on('spinchange', function() {
 			mandelbrot.setJuliaConstant(parseFloat(displayJuliaRl.val()), parseFloat(displayJuliaIm.val()));
 			update();
 		});
-		displayZoom.on('change', function() {
+		displayZoom.on('spinchange', function() {
 			mandelbrot.setZoom(parseFloat($(this).val()));
 			update();
 		});
-		displayMaxIter.on('change', function() {
+		displayMaxIter.on('spinchange', function() {
 			mandelbrot.setMaxIter(parseInt($(this).val(), 10));
 			update();
 		});
@@ -115,7 +115,7 @@ jQuery(function() {
 			mandelbrot.setNormalised($(this).prop('checked'));
 			update();
 		});
-		displayRadius.on('change', function() {
+		displayRadius.on('spinchange', function() {
 			mandelbrot.setRadius($(this).val());
 			update();
 		});
