@@ -1,74 +1,134 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta charset="UTF-8">
-<title>The Mandelbrot Set and Variations</title>
-<link rel="stylesheet" href="styles.css" type="text/css" media="screen" />
-<link rel="stylesheet" type="text/css" href="../lib/jquery-ui/themes/base/jquery.ui.all.css" />
-<script type="text/javascript" src="../lib/jquery/dist/jquery.js"></script>
-<script type="text/javascript" src="../lib/jquery-ui/ui/jquery.ui.core.js"></script>
-<script type="text/javascript" src="../lib/jquery-ui/ui/jquery.ui.widget.js"></script>
-<script type="text/javascript" src="../lib/jquery-ui/ui/jquery.ui.mouse.js"></script>
-<script type="text/javascript" src="../lib/jquery-ui/ui/jquery.ui.resizable.js"></script>
-<script type="text/javascript" src="../lib/jquery-ui/ui/jquery.ui.progressbar.js"></script>
-<script type="text/javascript" src="../lib/jsdebug/debug.js"></script>
-<script type="text/javascript" src="../lib/js-lib/maths.js"></script>
-<script type="text/javascript" src="../lib/js-lib/strings.js"></script>
-<script type="text/javascript" src="../lib/js-lib/colours.js"></script>
-<script type="text/javascript" src="../lib/js-lib/canvas.js"></script>
-<script type="text/javascript" src="../lib/js-lib/colour_conversions.js"></script>
-<script type="text/javascript" src="../lib/js-lib/setImmediate.js"></script>
-<script type="text/javascript" src="colourmaps.js"></script>
-<script type="text/javascript" src="etcalc.js"></script>
-<script type="text/javascript" src="mandelbrot.js"></script>
-<script type="text/javascript" src="scripts.js"></script>
+  <meta charset="UTF-8">
+  <title>The Mandelbrot Set and Variations</title>
+  <link rel="stylesheet" href="styles.css" type="text/css" media="screen" />
+  <link rel="stylesheet" type="text/css" href="../lib/jquery-ui/jquery-ui-1.10.2.custom.min.css" />
+  <script type="text/javascript" src="../lib/jquery/jquery.min.js"></script>
+  <script type="text/javascript" src="../lib/jquery-ui/jquery-ui-1.10.2.custom.min.js"></script>
+  <script type="text/javascript" src="../lib/jsdebug/debug.js"></script>
+  <script type="text/javascript" src="../lib/js-lib/maths.js"></script>
+  <script type="text/javascript" src="../lib/js-lib/strings.js"></script>
+  <script type="text/javascript" src="../lib/js-lib/colours.js"></script>
+  <script type="text/javascript" src="../lib/js-lib/canvas.js"></script>
+  <script type="text/javascript" src="../lib/js-lib/colour_conversions.js"></script>
+  <script type="text/javascript" src="../lib/js-lib/setImmediate.js"></script>
+  <script type="text/javascript" src="colourmaps.js"></script>
+  <script type="text/javascript" src="etcalc.js"></script>
+  <script type="text/javascript" src="mandelbrot.js"></script>
+  <script type="text/javascript" src="scripts.js"></script>
 </head>
 <body>
 
 <h1>The Mandelbrot Set and Variations</h1>
 
-<p><span id="name"></span>: <span id="equation"></span></p>
-
-<p>Click on part of the image to zoom in, or use the buttons below.
-You can resize the image by dragging its edges.
+<p>
+  <span id="name"></span>: <span id="equation"></span>
 </p>
 
-<div class="resizable ui-widget-content">
-<canvas id="mandelbrot" width="400" height="400"></canvas>
+<p>
+  Click on part of the image to zoom in, or use the buttons below.
+  You can resize the image by dragging its edges.
+</p>
+
+<div class="resizable">
+  <canvas id="mandelbrot" width="400" height="400" contextmenu="canvasMenu">
+    Either your browser does not support the HTML5 Canvas, or its Javascript functionality is disabled (or both).
+    As a result, this program cannot operate.
+  </canvas>
 </div>
 
+<menu type="context" id="canvasMenu">
+  <menuitem label="Zoom in" id="menuZoomIn"></menuitem>
+  <menuitem label="Zoom out" id="menuZoomOut"></menuitem>
+</menu>
+
 <div id="controls">
-<table>
-<tr><td>Centre real</td><td><input id="centrerl"></td></tr>
-<tr><td>Centre imaginary</td><td><input id="centreim"></td></tr>
-<tr><td class="onlyJulia">Julia constant real</td><td class="onlyJulia"><input id="juliarl"></td></tr>
-<tr><td class="onlyJulia">Julia constant imaginary</td><td class="onlyJulia"><input id="juliaim"></td></tr>
-<tr><td>Scale</td><td><input id="scale"></td></tr>
-<tr><td>Max iterations</td><td><input id="maxiter"></td></tr>
-<tr><td>Max radius</td><td><input id="radius"></td></tr>
-<tr><td>Mouse real</td><td><span id="mouserl"></span></td></tr>
-<tr><td>Mouse imaginary</td><td><span id="mouseim"></span></td></tr>
-<tr><td>Fractal type</td><td><select id="fractaltype"></select></td></tr>
-<tr><td>Colour map</td><td><select id="colourmap"></select></td></tr>
-<tr><td colspan="2"><input type="checkbox" id="normalised"><label for="normalised">Normalise iteration count</label></td></tr>
-<tr><td colspan="2">
-<input type="button" id="zoomin" value="Zoom in" />
-<input type="button" id="zoomout" value="Zoom out" />
-<input type="button" id="stop" value="Stop" />
-<input type="button" id="toggleJulia" value="Julia" />
-</td></tr>
-<tr><td colspan="2"><div id="pixelsPerSecondWrapper"><span id="pixelsPerSecond"></span></div> pixels/sec</td></tr>
-<tr><td colspan="2"><div style="position: relative"><div id="renderProgress"></div><div id="renderProgressText"></div></div></td></tr>
-</table>
+  <table>
+    <tr>
+      <td>Centre real</td>
+      <td><input type="number" id="centrerl" class="numeric"></td>
+    </tr>
+    <tr>
+      <td>Centre imaginary</td>
+      <td><input type="number" id="centreim" class="numeric"></td>
+    </tr>
+    <tr>
+      <td class="onlyJulia numeric">Julia constant real</td>
+      <td class="onlyJulia"><input type="number" id="juliarl"></td>
+    </tr>
+    <tr>
+      <td class="onlyJulia numeric">Julia constant imaginary</td>
+      <td class="onlyJulia"><input type="number" id="juliaim"></td>
+    </tr>
+    <tr>
+      <td>Zoom</td>
+      <td><input id="zoom" type="number" class="numeric"></td>
+    </tr>
+    <tr>
+      <td>Max iterations</td>
+      <td><input id="maxiter" type="number" class="numeric"></td>
+    </tr>
+    <tr>
+      <td>Max radius</td>
+      <td><input id="radius" type="number" class="numeric"></td>
+    </tr>
+    <tr>
+      <td>Mouse real</td>
+      <td><span id="mouserl"></span></td>
+    </tr>
+    <tr>
+      <td>Mouse imaginary</td>
+      <td><span id="mouseim"></span></td>
+    </tr>
+    <tr>
+      <td>Fractal type</td>
+      <td><select id="fractaltype"></select></td>
+    </tr>
+    <tr>
+      <td>Colour map</td>
+      <td><select id="colourmap"></select></td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <input type="checkbox" id="normalised" />
+        <label for="normalised">Normalise iteration count</label>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <button id="buttonZoomIn">Zoom in</button>
+        <button id="buttonZoomOut">Zoom out</button>
+        <button id="stop">Stop</button>
+        <button id="toggleJulia">Julia</button>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <div id="pixelsPerSecondWrapper"><span id="pixelsPerSecond"></span></div> pixels/sec
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+        <div style="position: relative">
+          <div id="renderProgress"></div>
+          <div id="renderProgressText"></div>
+        </div>
+      </td>
+    </tr>
+  </table>
 </div>
 
 <br class="clearfloat" />
 
 <div>
-<p>Some interesting places:</p>
-<ul>
-<li>A <a href="#" id="preset1">Julia set lookalike within the Mandelbrot set</a> at -0.743643887037151 + 0.131825904205330i
-</ul>
+  <p>Some interesting places:</p>
+  <ul>
+    <li>A <a href="#" id="preset1">Julia set lookalike within the Mandelbrot set</a>
+        at -0.743643887037151 + 0.131825904205330i
+    </li>
+  </ul>
 </div>
  
 </body>

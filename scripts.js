@@ -7,11 +7,11 @@ jQuery(function() {
 		var canvas = $('#mandelbrot'),
 			displayMouseRl = $('#mouserl'), displayMouseIm = $('#mouseim'),
 			displayCentreRl = $('#centrerl'), displayCentreIm = $('#centreim'),
-			displayScale = $('#scale'), displayMaxIter = $('#maxiter'),
+			displayZoom = $('#zoom'), displayMaxIter = $('#maxiter'),
 			displayColourMap = $('#colourmap'), displayFractalType = $('#fractaltype'),
 			displayNormalised = $('#normalised'), displayRadius = $('#radius'),
 			displayEquation = $('#equation'), mandelbrot,
-			buttonZoomIn = $('#zoomin'), buttonZoomOut = $('#zoomout'),
+			buttonZoomIn = $('#buttonZoomIn'), buttonZoomOut = $('#buttonZoomOut'),
 			buttonStop = $('#stop'), displayName = $('#name'),
 			buttonJulia = $('#toggleJulia'),
 			resizable = $('.resizable'),
@@ -20,7 +20,16 @@ jQuery(function() {
 			displayJuliaRl = $('#juliarl'),
 			displayJuliaIm = $('#juliaim'),
 			onlyJulia = $('.onlyJulia'),
-			renderProgressText = $('#renderProgressText');
+			renderProgressText = $('#renderProgressText'),
+			menuZoomIn = $('#menuZoomIn'),
+			menuZoomOut = $('menuZoomOut')
+		;
+		// Enable jQuery UI buttons and checkboxes
+		$("button, input[type=checkbox]").button();
+		// Enable jQuery UI selects as menus
+		$('select').menu();
+		// Enable jQuery UI spinners
+		$('textfield.numeric, input[type="number"], input.numeric').spinner();
 		// Populate escape-time calculator and colourmap drop-down lists
 		$(Mandelbrot.colourMaps).each(function(i, cmap) {
 			// Generate an entry in the drop-down select list for this colour map
@@ -41,13 +50,13 @@ jQuery(function() {
 			displayFractalType.append(option);
 		});
 		// Create a Mandelbrot set and controls
-		mandelbrot = new Mandelbrot.MandelbrotCanvas(canvas, Mandelbrot.escapeTimeCalculators[0], Mandelbrot.colourMaps[0]);
+		mandelbrot = new Mandelbrot.DisplayCanvas(canvas, Mandelbrot.escapeTimeCalculators[0], Mandelbrot.colourMaps[0]);
 		function update() {
 			displayCentreRl.val(mandelbrot.getCentre()[0]);
 			displayCentreIm.val(mandelbrot.getCentre()[1]);
 			displayJuliaRl.val(mandelbrot.getJuliaConstant()[0]);
 			displayJuliaIm.val(mandelbrot.getJuliaConstant()[1]);
-			displayScale.val(mandelbrot.getScale());
+			displayZoom.val(mandelbrot.getZoom());
 			displayColourMap.val(mandelbrot.getColourMap().name);
 			displayMaxIter.val(mandelbrot.getMaxIter());
 			displayFractalType.val(mandelbrot.getFractalType().name);
@@ -55,7 +64,7 @@ jQuery(function() {
 			displayRadius.val(mandelbrot.getRadius());
 			displayEquation.html(mandelbrot.getEquation());
 			displayName.text(displayFractalType.find(':selected').text());
-			buttonJulia.val(mandelbrot.isJulia() ? 'Mandelbrot' : 'Julia');
+			buttonJulia.button('option', 'label', mandelbrot.isJulia() ? 'Mandelbrot' : 'Julia');
 			onlyJulia.css('visibility', mandelbrot.isJulia() ? 'visible' : 'hidden');
 			mandelbrot.update();
 		}
@@ -67,8 +76,8 @@ jQuery(function() {
 			mandelbrot.setJuliaConstant(parseFloat(displayJuliaRl.val()), parseFloat(displayJuliaIm.val()));
 			update();
 		});
-		displayScale.on('change', function() {
-			mandelbrot.setScale(parseFloat($(this).val()));
+		displayZoom.on('change', function() {
+			mandelbrot.setZoom(parseFloat($(this).val()));
 			update();
 		});
 		displayMaxIter.on('change', function() {
@@ -83,11 +92,11 @@ jQuery(function() {
 			mandelbrot.setFractalType($(this).find(':selected').data('modelObject'));
 			update();
 		});
-		buttonZoomIn.on('click', function() {
+		buttonZoomIn.add(menuZoomIn).on('click', function() {
 			mandelbrot.zoomInBy(2);
 			update();
 		});
-		buttonZoomOut.on('click', function() {
+		buttonZoomOut.add(menuZoomOut).on('click', function() {
 			mandelbrot.zoomOutBy(2);
 			update();
 		});
@@ -125,7 +134,7 @@ jQuery(function() {
 			.setNormalised(true)
 			.setCentre(-0.743643887037151, 0.131825904205330)
 			.setMaxIter(5000)
-			.setScale(1.318989403545856e-13);
+			.setZoom(7581562065623);
 			update();
 		});
 		canvas.on('mousemove', function(event) {
@@ -142,14 +151,17 @@ jQuery(function() {
 			update();
 		}).on(Mandelbrot.eventNames.renderProgress, function(event, percentDone) {
 			renderProgress.progressbar('option', 'value', percentDone);
-			renderProgressText.text(percentDone + '% complete');
+			renderProgressText.text((100 === percentDone) ? 'Finished' : (percentDone + '% complete'));
 		}).on(Mandelbrot.eventNames.pixelsPerSecond, function(event, pixelsPerSecond) {
 			displayPixelsPerSecond.text(roundPlaces(pixelsPerSecond, 2));
 		}).on(Mandelbrot.eventNames.renderStart, function() {
-			buttonStop.removeAttr('disabled');
+			buttonStop.button('option', 'disabled', false);
+			canvas.trigger(Mandelbrot.eventNames.renderProgress, 0);
+			renderProgress.progressbar('enable');
 		}).on(Mandelbrot.eventNames.renderEnd, function() {
-			buttonStop.attr('disabled', 'disabled');
-			renderProgressText.text('Finished');
+			buttonStop.button('option', 'disabled', true);
+			canvas.trigger(Mandelbrot.eventNames.renderProgress, 100);
+			renderProgress.progressbar('disable');
 		});
 		renderProgress.progressbar({value: 0, max: 100});
 		update();

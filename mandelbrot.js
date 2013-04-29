@@ -3,7 +3,7 @@ if (typeof(Mandelbrot) === 'undefined') {
 }
 
 /**
- * A canvas displaying the Mandelbrot set.
+ * An HTML5 Canvas that displays an escape-time fractal.
  * 
  * @param canvas
  *            A jQuery wrapper around the HTML5 canvas element to draw into
@@ -12,12 +12,11 @@ if (typeof(Mandelbrot) === 'undefined') {
  * @param etCalcName
  *            Escape-time calculator to use
  */
-Mandelbrot.MandelbrotCanvas = function(canvas, etCalc, cmap) {
+Mandelbrot.DisplayCanvas = function(canvas, etCalc, cmap) {
 	this.$canvas = canvas;
 	this.canvas = this.$canvas[0];
 	this.context = this.canvas.getContext("2d");
-	// TODO: Rename scale to zoom and invert its sense throughout
-	this.scale = 5 / Math.min(this.canvas.width, this.canvas.height);
+	this.zoom = Math.min(this.canvas.width, this.canvas.height) / 5;
 	this.setFractalType(etCalc).setColourMap(cmap);
 	this.bandHeight = Math.max(
 		this.bandHeightMin,
@@ -28,7 +27,7 @@ Mandelbrot.MandelbrotCanvas = function(canvas, etCalc, cmap) {
 	);
 };
 
-$.extend(Mandelbrot.MandelbrotCanvas.prototype, {
+$.extend(Mandelbrot.DisplayCanvas.prototype, {
 	centreRl      : 0,
 	centreIm      : 0,
 	juliaRl       : 0,
@@ -44,7 +43,7 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 	 * the smoothness of the colouring.
 	 */
 	radius        : 4,
-	// TODO: Normalise scale so that at scale===1, whole set is in view.
+	// TODO: Normalise zoom so that at zoom===1, whole set is in view.
 	toggleJulia: function() {
 		this.julia = !this.julia;
 		return this;
@@ -57,12 +56,12 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 		return this;
 	},
 	colToX : function(c) {
-		return (c + 0.5 - this.canvas.width / 2) * this.scale + this.centreRl;
+		return (c + 0.5 - this.canvas.width / 2) / this.zoom + this.centreRl;
 	},
 	rowToY : function(r) {
 		// Inversion due to the canvas' inverted-Y co-ordinate system.
 		// The set is symmetrical, but the co-ordinates are shown to the user.
-		return -(r + 0.5 - this.canvas.height / 2) * this.scale + this.centreIm;
+		return -(r + 0.5 - this.canvas.height / 2) / this.zoom + this.centreIm;
 	},
 	drawMore: function(r, imageData, startTime) {
 		var that = this,
@@ -80,7 +79,8 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 			rowEnd = Math.min(rowStart + this.bandHeight, height),
 			c, x0, y0,
 			xinc = undefined, yinc = undefined, // Silence Eclipse warnings
-			et, colour, percent, endTime;
+			et, colour, percent, endTime
+		;
 		if (isJulia) {
 			xinc = this.juliaRl;
 			yinc = this.juliaIm;
@@ -134,7 +134,6 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 				r = that.drawMore(r, imageData, startTime);
 			});
 		} else {
-			this.$canvas.trigger(Mandelbrot.eventNames.renderProgress, 100);
 			this.$canvas.trigger(Mandelbrot.eventNames.renderEnd);
 		}
 		return r;
@@ -148,14 +147,19 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 	update : function() {
 		var r = 0, that = this,
 			imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height),
-			startTime = undefined; // Silence Eclipse warning
+			startTime = undefined // Silence Eclipse warning
+		;
 		this.stop();
-		this.running = true;
-		this.$canvas.trigger(Mandelbrot.eventNames.renderProgress, 0);
-		this.$canvas.trigger(Mandelbrot.eventNames.renderStart);
-		startTime = new Date();
+		// The following is wrapped in a setImmediate to give the preceding stop() a chance to take effect.
+		// If this is not done, multiple updates can run in pseudo-parallel, yielding corrupt drawing.
+		// This occurs despite the fact that current Javascript interpreters are single-threaded.
 		setImmediate(function() {
-			r = that.drawMore(r, imageData, startTime);
+			that.running = true;
+			that.$canvas.trigger(Mandelbrot.eventNames.renderStart);
+			startTime = new Date();
+			setImmediate(function() {
+				r = that.drawMore(r, imageData, startTime);
+			});
 		});
 		return this;
 	},
@@ -202,23 +206,23 @@ $.extend(Mandelbrot.MandelbrotCanvas.prototype, {
 		}
 		return ret;
 	},
-	getScale : function() {
-		return this.scale;
+	getZoom : function() {
+		return this.zoom;
 	},
-	setScale : function(newScale) {
-		this.scale = newScale;
+	setZoom : function(newZoom) {
+		this.zoom = newZoom;
 		return this;
 	},
 	zoomBy : function(factor) {
-		this.scale *= factor;
+		this.zoom *= factor;
 		return this;
 	},
 	zoomInBy : function(factor) {
-		this.zoomBy(1 / factor);
+		this.zoomBy(factor);
 		return this;
 	},
 	zoomOutBy : function(factor) {
-		this.zoomBy(factor);
+		this.zoomBy(1 / factor);
 		return this;
 	},
 	getMaxIter : function() {

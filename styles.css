@@ -1,9 +1,5 @@
 @CHARSET "UTF-8";
 
-button {
-	margin: 5px;
-}
-
 .resizable {
 	float: left; /* trigger shrinkwrap */
 	padding: 10px;
@@ -22,9 +18,10 @@ button {
 
 #renderProgressText {
 	position: absolute;
-	width: 100%;
 	top: 0;
 	left: 0;
+	width: 100%;
+	height: 100%;
 	z-index: 99;
 	text-align: center;
 }

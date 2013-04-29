@@ -2,6 +2,17 @@ if (typeof(Mandelbrot) === 'undefined') {
 	Mandelbrot = {};
 }
 
+/**
+ * An Escape-Time Calculator attempts to calculate the number of iterations necessary
+ * for a given point to escape a radius of a given radius centred on the origin
+ * under iteration by a given function.
+ * After a given number of maximum iterations has been reached, it gives up and
+ * assumes that the point never escapes the circle.
+ * @param name Human-readable name of the function
+ * @param equation HTML human-readable expression of the function
+ * @param iterFunc Javascript implementation of the function
+ * @returns {Mandelbrot.EscapeTimeCalculator} The new instance
+ */
 Mandelbrot.EscapeTimeCalculator = function(name, equation, iterFunc) {
 	this.name = name;
 	this.equation = equation;
