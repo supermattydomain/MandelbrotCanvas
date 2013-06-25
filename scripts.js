@@ -158,9 +158,13 @@ jQuery(function() {
 			buttonStop.button('option', 'disabled', false);
 			canvas.trigger(Mandelbrot.eventNames.renderProgress, 0);
 			renderProgress.progressbar('enable');
-		}).on(Mandelbrot.eventNames.renderEnd, function() {
+		}).on(Mandelbrot.eventNames.renderCompleted, function() {
 			buttonStop.button('option', 'disabled', true);
 			canvas.trigger(Mandelbrot.eventNames.renderProgress, 100);
+			renderProgress.progressbar('disable');
+		}).on(Mandelbrot.eventNames.renderAborted, function() {
+			buttonStop.button('option', 'disabled', true);
+			$().toastmessage('showNoticeToast', 'Stopped');
 			renderProgress.progressbar('disable');
 		});
 		renderProgress.progressbar({value: 0, max: 100});

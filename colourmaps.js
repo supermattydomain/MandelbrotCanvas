@@ -15,11 +15,6 @@ Mandelbrot.ColourMap = function(name) {
 	}
 };
 $.extend(Mandelbrot.ColourMap.prototype, {
-	// FIXME: The below seems to result in this array being shared by all instances
-	// of all subclasses, as if it were 'static' in C++.
-	// But assigning in the parent class ctor (above) works.
-	// What is the difference between the two?
-	// colourMap: []
 	makeColour: function(n, lastVal, power, maxIter, normalised) {
 		// Points in the set are black
 		if (n === maxIter) {
@@ -59,9 +54,9 @@ Mandelbrot.RainbowColourMap.prototype = new Mandelbrot.ColourMap();
 $.extend(Mandelbrot.RainbowColourMap.prototype, {
 	numGradations: 10, // Gradations per colour map
 	genColourMap: function() {
-		var h = 0, s = 0.6, v = 0.8, i, rgb;
+		var s = 0.6, v = 0.8, i, rgb;
 		for (i = 0; i < this.numGradations; i++) {
-			rgb = hsvToRgb(h + (i / this.numGradations), s, v);
+			rgb = hsv2rgb(i / this.numGradations, s, v);
 			this.colourMap[i] = [ rgb[0], rgb[1], rgb[2], 255 ];
 		}
 	}

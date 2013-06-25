@@ -107,7 +107,7 @@ $.extend(Mandelbrot.DisplayCanvas.prototype, {
 					normalised
 				);
 				if (!this.running) {
-					this.$canvas.trigger(Mandelbrot.eventNames.renderEnd);
+					this.$canvas.trigger(Mandelbrot.eventNames.renderAborted);
 					return; // Aborted
 				}
 				setPixel(
@@ -121,20 +121,12 @@ $.extend(Mandelbrot.DisplayCanvas.prototype, {
 		this.$canvas.trigger(Mandelbrot.eventNames.pixelsPerSecond, rowEnd * width * 1000 / (endTime - startTime));
 		if (r < height) {
 			percent = Math.floor((r * 100.0) / height);
-			// TODO: Animate the progress bar smoothly.
-			// FIXME: This animates it, but all of the
-			// animation occurs after rendering is complete:
-			/*
-			 * $('.ui-progressbar-value').stop(true).animate({width: percent + '%'}, 1000, function() {
-			 *     this.$canvas.trigger(Mandelbrot.eventNames.renderProgress, percent);
-			 * });
-			 */
 			this.$canvas.trigger(Mandelbrot.eventNames.renderProgress, percent);
 			setImmediate(function() {
 				r = that.drawMore(r, imageData, startTime);
 			});
 		} else {
-			this.$canvas.trigger(Mandelbrot.eventNames.renderEnd);
+			this.$canvas.trigger(Mandelbrot.eventNames.renderCompleted);
 		}
 		return r;
 	},
@@ -168,20 +160,10 @@ $.extend(Mandelbrot.DisplayCanvas.prototype, {
 		return this;
 	},
 	/**
-	 * NOTE: I would like to simply translate and scale the
-	 * canvas here; but at time of writing, there is no portable
-	 * way to retrieve the canvas' current transform matrix. So
-	 * I simply do my own, manual transforms. One could
-	 * implement (and some have) a polyfill for this: maintain a
-	 * 'shadow' copy of the canvas' current transform matrix,
-	 * over-ride every relevant canvas mutator so it
-	 * concatenates the newly-applied transform with the shadow
-	 * matrix, then regurgitate the shadow matrix on demand.
-	 * 
-	 * NOTE: No, that would not work. The Canvas' putImageData
-	 * method does not use the transformation matrix. You can
-	 * however draw a canvas onto another canvas, possibly with
-	 * transformation. But that sounds slow.
+	 * I would like to simply translate and scale the
+	 * canvas here, but putImageData does not use the transformation matrix.
+	 * TODO: One can draw a canvas onto another canvas, possibly with transformation.
+	 * That sounds slow, but it still could be faster than the below.
 	 */
 	getCentre : function() {
 		return [ this.centreRl, this.centreIm ];
@@ -267,6 +249,7 @@ $.extend(Mandelbrot, {
 		renderProgress: 'Mandelbrot.renderProgress',
 		pixelsPerSecond: 'Mandelbrot.pixelsPerSecond',
 		renderStart: 'Mandelbrot.renderStart',
-		renderEnd: 'Mandelbrot.renderEnd'
+		renderCompleted: 'Mandelbrot.renderCompleted',
+		renderAborted: 'Mandelbrot.renderAborted'
 	}
 });
