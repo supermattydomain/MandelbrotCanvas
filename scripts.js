@@ -28,8 +28,8 @@ jQuery(function() {
 		$("button, input[type=checkbox]").button();
 		// Enable jQuery UI selects as menus
 		$('select').menu();
-		// Enable jQuery UI spinners
-		$('textfield.numeric, input[type="number"], input.numeric').spinner();
+		// Enable jQuery UI spinners (but not on input[type="number"] due to a jQuery UI conflict with native spinners)
+		$('textfield.numeric, input.numeric').spinner();
 		// Populate escape-time calculator and colourmap drop-down lists
 		$(Mandelbrot.colourMaps).each(function(i, cmap) {
 			// Generate an entry in the drop-down select list for this colour map
