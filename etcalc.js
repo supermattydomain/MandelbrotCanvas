@@ -13,10 +13,11 @@ if (typeof(Mandelbrot) === 'undefined') {
  * @param iterFunc Javascript implementation of the function
  * @returns {Mandelbrot.EscapeTimeCalculator} The new instance
  */
-Mandelbrot.EscapeTimeCalculator = function(name, equation, iterFunc) {
+Mandelbrot.EscapeTimeCalculator = function(name, equation, iterFunc, autoAddFinalTerm) {
 	this.name = name;
 	this.equation = equation;
 	this.iterate = iterFunc;
+	this.autoAddFinalTerm = !!autoAddFinalTerm;
 };
 
 $.extend(Mandelbrot.EscapeTimeCalculator.prototype, {
@@ -24,7 +25,11 @@ $.extend(Mandelbrot.EscapeTimeCalculator.prototype, {
 		return this.name;
 	},
 	getEquation: function(isJulia) {
-		return 'z<sub>n+1</sub> = ' + this.equation + ' + ' + (isJulia ? 'C' : 'z<sub>0</sub>');
+		var ret = 'z<sub>n+1</sub> = ' + this.equation;
+		if (this.autoAddFinalTerm) {
+			ret += ' + ' + (isJulia ? 'C' : 'z<sub>0</sub>')
+		}
+		return ret;
 	},
 	getIterFunc: function() {
 		return this.iterate;
@@ -85,7 +90,8 @@ $.extend(Mandelbrot, {
 	        		return [i, Math.sqrt(sqrl + sqim), 2];    			
 	    		}
 	    		return [i, 0, 2];
-	    	}
+	    	},
+	    	true
 	    ),
 	    /**
 	     * Mandelbrot cubic: z(n+1) = z(n)^3 + z(0)
@@ -117,7 +123,8 @@ $.extend(Mandelbrot, {
 	    			return [i, Math.sqrt(sqrl + sqim), 3];
 	    		}
 	    		return [i, 0, 3];
-	    	}
+	    	},
+	    	true
 	    ),
 	    /**
 	     * Mandelbrot quartic: z(n+1) = z(n)^4 + z(0)
@@ -150,7 +157,8 @@ $.extend(Mandelbrot, {
 	        		return [i, Math.sqrt(sqrl + sqim), 4];
 	    		}
 	    		return [i, 0, 4];
-	    	}
+	    	},
+	    	true
 	    ),
 	    /**
 	     * Mandelbrot quintic: z(n+1) = z(n)^5 + z(0)
@@ -178,7 +186,8 @@ $.extend(Mandelbrot, {
 	        		return [i, Math.sqrt(sqrl + sqim), 5];
 	    		}
 	    		return [i, 0, 5];
-			}
+			},
+			true
 		),
 		/**
 		 * Mandelbrot conjugate aka Mandelbar aka Tricorn: z(n+1) = con(z)^2 + z(0)
@@ -206,7 +215,8 @@ $.extend(Mandelbrot, {
 	        		return [i, Math.sqrt(sqrl + sqim), 2];
 	    		}
 	    		return [i, 0, 2];
-			}
+			},
+			true
 		),
 		/**
 		 * Mandelbrot conjugate cubic: z(n+1) = con(z)^3 + z(0)
@@ -234,7 +244,8 @@ $.extend(Mandelbrot, {
 	        		return [i, Math.sqrt(sqrl + sqim), 3];
 	    		}
 	    		return [i, 0, 3];
-			}
+			},
+			true
 		),
 		/**
 		 * Mandelbrot conjugate quartic: z(n+1) = con(z)^4 + z(0)
@@ -264,7 +275,8 @@ $.extend(Mandelbrot, {
 	        		return [i, Math.sqrt(sqrl + sqim), 4];
 	    		}
 	    		return [i, 0, 4];
-			}
+			},
+			true
 		),
 		/**
 		 * Mandelbrot conjugate quintic: z(n+1) = con(z)^5 + z(0)
@@ -292,7 +304,74 @@ $.extend(Mandelbrot, {
 	        		return [i, Math.sqrt(sqrl + sqim), 5];
 	    		}
 	    		return [i, 0, 5];
-			}
+			},
+			true
+		),
+		/**
+		 * Collatz map: z(n+1) = 1/4(1 + 4z(n) + - (1 + 2z) cos(PI * z(n))
+		 */
+		new Mandelbrot.EscapeTimeCalculator(
+			'Collatz map (variant 1)',
+			'&frac14;(1 + 4z<sub>n</sub> - (1 + 2z<sub>n</sub>) cos(&pi;z<sub>n</sub>))',
+			function(isJulia, x, y, crl, cim, maxIter, radius, normalised) {
+	    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius, c, s, newrl, newim;
+
+	    		for (;;) {
+	    			sqrl = rl * rl;
+	    			sqim = im * im;
+	    			if ((sqrl + sqim) > sqr) {
+	    				break;
+	    			}
+	    			c = Math.cos(Math.PI * rl) * Math.cosh(Math.PI * im);
+	    			s = Math.sin(Math.PI * rl) * Math.sinh(Math.PI * im);
+	    			newrl = 0.25 + rl - (2 * rl + 1) * c - 2 * im * s;
+	    			newim = (1 - 2 * c) * im + (2 * rl + 1) * s;
+	    			if (++i >= maxIter) {
+	    				return [maxIter, 0, 5];
+	    			}
+	    			rl = newrl;
+	    			im = newim;
+	    		}
+
+	    		if (normalised) {
+	        		return [i, Math.sqrt(sqrl + sqim), 5];
+	    		}
+	    		return [i, 0, 5];
+			},
+			false
+		),
+		/**
+		 * Collatz map: z(n+1) = 1/4(1 + 4z(n) + - (1 + 2z) cos(PI * z(n))
+		 */
+		new Mandelbrot.EscapeTimeCalculator(
+			'Collatz map (variant 2)',
+			'&frac14;(2 + 7z<sub>n</sub> - (2 + 5z<sub>n</sub>) cos(&pi;z<sub>n</sub>))',
+			function(isJulia, x, y, crl, cim, maxIter, radius, normalised) {
+	    		var rl = x, im = y, sqrl = 0, sqim = 0, i = 0, sqr = radius * radius, c, s, newrl, newim;
+
+	    		for (;;) {
+	    			sqrl = rl * rl;
+	    			sqim = im * im;
+	    			if ((sqrl + sqim) > sqr) {
+	    				break;
+	    			}
+	    			c = Math.cos(Math.PI * rl) * Math.cosh(Math.PI * im);
+	    			s = Math.sin(Math.PI * rl) * Math.sinh(Math.PI * im);
+	    			newrl = 0.5 + 7 * rl / 4 - 2 * c - 5 * (c * rl + s * im);
+	    			newim = 7 * im / 4 + 2 * s + 5 * (s * rl - c * im);
+	    			if (++i >= maxIter) {
+	    				return [maxIter, 0, 5];
+	    			}
+	    			rl = newrl;
+	    			im = newim;
+	    		}
+
+	    		if (normalised) {
+	        		return [i, Math.sqrt(sqrl + sqim), 5];
+	    		}
+	    		return [i, 0, 5];
+			},
+			false
 		)
 	]
 });
